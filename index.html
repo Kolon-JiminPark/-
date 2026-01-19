@@ -8,74 +8,305 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-    body { margin: 0; background: #f6f7f9; color: #111; }
-    .wrap { max-width: 1180px; margin: 32px auto; padding: 0 16px; }
-    .card { background: #fff; border: 1px solid #e6e8ec; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
-    .header { padding: 18px 18px 12px 18px; }
-    h1 { margin: 0; font-size: 18px; }
-    .now-time { margin-top: 10px; font-size: 16px; font-weight: 750; color: #2f6fed; }
-    .sub { margin-top: 10px; font-size: 14px; color: #666; line-height: 1.7; }
-    .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #d5d9e0; background: #fff; color: #333; font-weight: 650; }
-    .top-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+    :root{
+      --bg:#f6f7f9;
+      --card:#fff;
+      --line:#e6e8ec;
+      --line2:#f0f2f5;
+      --text:#111;
+      --muted:#667085;
 
-    .controls { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 12px 18px 18px 18px; }
-    input[type="text"] { padding: 10px 12px; border: 1px solid #d5d9e0; border-radius: 10px; outline: none; }
-    button { padding: 10px 12px; border: 1px solid #d5d9e0; background: #fff; border-radius: 10px; cursor: pointer; }
-    button.primary { border-color: #2f6fed; background: #2f6fed; color: #fff; }
-    button.danger { border-color: #e05757; background: #fff; color: #b61f1f; }
-    button:disabled { opacity: .5; cursor: not-allowed; }
+      --primary:#2f6fed;
+      --primary-2:#2457bd;
 
-    .content { padding: 0 18px 18px 18px; }
-    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 12px; border: 1px solid #e6e8ec; }
-    thead th { text-align: left; font-size: 12px; color: #666; background: #fafbfc; border-bottom: 1px solid #e6e8ec; padding: 10px 12px; }
-    tbody td { padding: 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
-    tbody tr:last-child td { border-bottom: none; }
+      --success:#2db36b;
+      --success-2:#229957;
 
-    .badge { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .x .dot { background: #e05757; }
-    .o .dot { background: #2db36b; }
+      --danger:#e05757;
+      --danger-2:#c94747;
 
-    .row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
-    .muted { color: #666; font-size: 12px; }
-    .time-cell { font-size: 12px; color: #333; }
-    .time-cell .small { display: block; font-size: 11px; color: #666; margin-top: 2px; }
-    .countdown-cell { font-size: 12px; font-weight: 750; color: #2f6fed; white-space: nowrap; }
+      --shadow: 0 2px 10px rgba(0,0,0,.05);
+      --radius: 14px;
+      --radius2: 12px;
 
-    .footer { padding: 0 18px 18px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-    .toast { margin-top: 10px; font-size: 12px; color: #0b5; display: none; }
-    .toast.err { color: #b61f1f; }
-
-    button.ox { min-width: 44px; padding: 10px 14px; font-weight: 850; border: 1px solid transparent; letter-spacing: .3px; }
-    button.ox-o { background: #2db36b; border-color: #229957; color: #fff; }
-    button.ox-x { background: #e05757; border-color: #c94747; color: #fff; }
-    button.ox:disabled { opacity: .35; filter: grayscale(35%); }
-
-    select { padding: 10px 10px; border: 1px solid #d5d9e0; border-radius: 10px; background: #fff; }
-    .mini { padding: 8px 10px; border-radius: 10px; font-size: 12px; }
-    .chip { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #d5d9e0; background: #fff; font-weight: 750; }
-
-    /* 구역 행(상위) */
-    tr.area-row td {
-      background: #fbfcfe;
-      border-bottom: 1px solid #e6e8ec;
+      --h-btn: 36px;
+      --h-input: 40px;
+      --fs: 14px;
     }
-    .area-title { font-weight: 900; }
-    .inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-    /* 하위(주기) 행 */
-    tr.task-row td:first-child { padding-left: 28px; }
-    .cycle-chip { margin-left: 6px; }
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      background:var(--bg);
+      color:var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: var(--fs);
+    }
 
-    .cycle-weekly { border-color: rgba(47,111,237,.35); }
-    .cycle-monthly { border-color: rgba(45,179,107,.35); }
-    .cycle-quarterly { border-color: rgba(224,87,87,.35); }
+    .wrap{ max-width:1180px; margin:28px auto; padding:0 16px; }
 
-    @media (max-width: 980px) {
-      .controls { grid-template-columns: 1fr; }
-      .row-actions { justify-content: flex-start; }
-      .footer { flex-direction: column; align-items: stretch; }
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .header{ padding:18px 18px 10px 18px; border-bottom:1px solid var(--line); }
+    h1{ margin:0; font-size:18px; letter-spacing:-.2px; }
+    .now-time{ margin-top:10px; font-size:15px; font-weight:800; color:var(--primary); }
+
+    .meta-row{
+      margin-top:10px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      align-items:center;
+    }
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #d5d9e0;
+      background:#fff;
+      color:#344054;
+      font-weight:750;
+      white-space:nowrap;
+    }
+
+    .sub{
+      margin-top:10px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.7;
+    }
+
+    .toast{
+      margin-top:10px;
+      font-size:12px;
+      color:var(--success);
+      display:none;
+      font-weight:700;
+    }
+    .toast.err{ color:#b61f1f; }
+
+    /* Controls */
+    .controls{
+      padding:14px 18px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      border-bottom:1px solid var(--line);
+      background:#fff;
+    }
+
+    .controls .grow{ flex:1; min-width: 240px; }
+
+    input[type="text"]{
+      width:100%;
+      height:var(--h-input);
+      padding:0 12px;
+      border:1px solid #d5d9e0;
+      border-radius:12px;
+      outline:none;
+      background:#fff;
+    }
+    input[type="text"]:focus{ border-color: rgba(47,111,237,.55); box-shadow: 0 0 0 4px rgba(47,111,237,.12); }
+
+    select{
+      height:var(--h-btn);
+      padding:0 10px;
+      border:1px solid #d5d9e0;
+      border-radius:12px;
+      background:#fff;
+      font-weight:650;
+    }
+
+    .btn{
+      height:var(--h-btn);
+      padding:0 12px;
+      border-radius:12px;
+      border:1px solid #d5d9e0;
+      background:#fff;
+      cursor:pointer;
+      font-weight:800;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:8px;
+      white-space:nowrap;
+      transition: transform .04s ease, background .15s ease, border-color .15s ease;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .btn.primary{
+      background:var(--primary);
+      border-color:var(--primary);
+      color:#fff;
+    }
+    .btn.primary:hover{ background:var(--primary-2); border-color:var(--primary-2); }
+
+    .btn.danger{
+      background:#fff;
+      border-color: rgba(224,87,87,.55);
+      color:#b61f1f;
+    }
+    .btn.danger:hover{ border-color: rgba(224,87,87,.85); background: rgba(224,87,87,.06); }
+
+    .btn.ghost{
+      background:#fff;
+      border-color:#d5d9e0;
+      color:#344054;
+    }
+    .btn.ghost:hover{ background:#f7f8fa; }
+
+    /* Table */
+    .content{ padding: 14px 18px 18px 18px; }
+    .table-wrap{
+      border:1px solid var(--line);
+      border-radius: var(--radius2);
+      overflow:auto; /* mobile horizontal scroll */
+      background:#fff;
+    }
+    table{ width:100%; border-collapse:separate; border-spacing:0; min-width: 860px; }
+
+    thead th{
+      text-align:left;
+      font-size:12px;
+      color:#667085;
+      background:#fafbfc;
+      border-bottom:1px solid var(--line);
+      padding:10px 12px;
+      white-space:nowrap;
+    }
+
+    tbody td{
+      padding:12px;
+      border-bottom:1px solid var(--line2);
+      vertical-align:middle;
+    }
+    tbody tr:last-child td{ border-bottom:none; }
+
+    /* Col widths: balance so actions don't drift */
+    .col-name{ width: 34%; }
+    .col-status{ width: 10%; }
+    .col-countdown{ width: 16%; }
+    .col-changed{ width: 20%; }
+    .col-actions{ width: 20%; }
+
+    /* Status badge */
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-weight:900;
+      letter-spacing:.2px;
+    }
+    .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+    .x .dot{ background:var(--danger); }
+    .o .dot{ background:var(--success); }
+
+    .muted{ color:var(--muted); font-size:12px; }
+    .time-cell{ font-size:12px; color:#344054; }
+    .time-cell .small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
+    .countdown-cell{ font-size:12px; font-weight:900; color:var(--primary); white-space:nowrap; }
+
+    /* Area row */
+    tr.area-row td{
+      background:#fbfcfe;
+      border-bottom:1px solid var(--line);
+      padding:10px 12px;
+    }
+
+    .area-bar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+    }
+
+    .area-left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 240px;
+    }
+    .area-title{
+      font-weight:950;
+      letter-spacing:-.2px;
+    }
+
+    .area-right{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    /* Task row indent */
+    tr.task-row td:first-child{ padding-left: 28px; }
+    .inline{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .chip{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid #d5d9e0;
+      background:#fff;
+      font-weight:850;
+      white-space:nowrap;
+    }
+    .cycle-weekly{ border-color: rgba(47,111,237,.35); }
+    .cycle-monthly{ border-color: rgba(45,179,107,.35); }
+    .cycle-quarterly{ border-color: rgba(224,87,87,.35); }
+
+    /* Actions: keep compact, right aligned */
+    .row-actions{
+      display:flex;
+      justify-content:flex-end;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .btn.ox{
+      width: 44px;
+      padding:0;
+      font-weight:950;
+      letter-spacing:.3px;
+      border-color: transparent;
+      color:#fff;
+    }
+    .btn.ox-o{ background:var(--success); border-color:var(--success-2); }
+    .btn.ox-o:hover{ background:var(--success-2); }
+    .btn.ox-x{ background:var(--danger); border-color:var(--danger-2); }
+    .btn.ox-x:hover{ background:var(--danger-2); }
+
+    .footer{
+      padding: 12px 18px 16px 18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      border-top:1px solid var(--line);
+      background:#fff;
+    }
+
+    @media (max-width: 980px){
+      .controls{ align-items:stretch; }
+      .controls .grow{ min-width: 100%; }
+      .btn{ width:100%; }
+      .footer{ flex-direction:column; align-items:flex-start; }
+      .row-actions{ justify-content:flex-start; }
+      .area-bar{ justify-content:flex-start; }
     }
   </style>
 </head>
@@ -87,7 +318,7 @@
         <h1>생산구역 청소 체크_V2</h1>
         <div id="nowTime" class="now-time">현재 시각: -</div>
 
-        <div class="top-row">
+        <div class="meta-row">
           <div class="pill" id="syncState">동기화: -</div>
           <div class="pill" id="resetState">자동리셋: -</div>
           <div class="pill" id="lastResetLog">마지막 초기화: -</div>
@@ -103,24 +334,28 @@
       </div>
 
       <div class="controls">
-        <input id="areaInput" type="text" placeholder="구역 추가 (예: 준비실)" />
-        <button id="addAreaBtn" class="primary">구역 추가</button>
-        <button id="resetCatchUpBtn" class="danger">서버 리셋 캐치업(1회)</button>
+        <div class="grow">
+          <input id="areaInput" type="text" placeholder="구역 추가 (예: 준비실)" />
+        </div>
+        <button id="addAreaBtn" class="btn primary">구역 추가</button>
+        <button id="resetCatchUpBtn" class="btn danger">서버 리셋 캐치업(1회)</button>
       </div>
 
       <div class="content">
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 22%;">구역 / 주기</th>
-              <th style="width: 10%;">상태</th>
-              <th style="width: 18%;">다음 리셋까지</th>
-              <th style="width: 22%;">상태 변경 시점</th>
-              <th style="width: 28%;">선택</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-name">구역 / 주기</th>
+                <th class="col-status">상태</th>
+                <th class="col-countdown">다음 리셋까지</th>
+                <th class="col-changed">상태 변경 시점</th>
+                <th class="col-actions" style="text-align:right;">선택</th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="footer">
@@ -141,7 +376,7 @@
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
 
       // 화면 버전 표기(수정할 때마다 바꿔두면 팀원 버전 확인 쉬움)
-      const BUILD_VERSION = "2026-01-19.v2";
+      const BUILD_VERSION = "2026-01-19.v2.ui-polish";
 
       const buildInfoEl = document.getElementById("buildInfo");
       buildInfoEl.textContent = "버전: " + BUILD_VERSION;
@@ -440,22 +675,29 @@
             .filter(t => t.area_name === areaName)
             .sort((a, b) => cycleRank(a.cycle) - cycleRank(b.cycle));
 
-          // (상위) 구역 한 줄: 원래 입력 방식 느낌
+          // Area row
           const areaTr = document.createElement("tr");
           areaTr.className = "area-row";
 
           const tdArea = document.createElement("td");
           tdArea.colSpan = 5;
 
-          const wrap = document.createElement("div");
-          wrap.className = "inline";
+          const bar = document.createElement("div");
+          bar.className = "area-bar";
+
+          const left = document.createElement("div");
+          left.className = "area-left";
 
           const title = document.createElement("span");
           title.className = "area-title";
           title.textContent = areaName;
 
+          left.appendChild(title);
+
+          const right = document.createElement("div");
+          right.className = "area-right";
+
           const addSel = document.createElement("select");
-          addSel.className = "mini";
           addSel.innerHTML = `
             <option value="weekly">주간 추가</option>
             <option value="monthly">월간 추가</option>
@@ -463,12 +705,12 @@
           `;
 
           const addBtn = document.createElement("button");
-          addBtn.className = "mini primary";
+          addBtn.className = "btn primary";
           addBtn.textContent = "주기 항목 추가";
           addBtn.addEventListener("click", () => addTask(areaName, addSel.value));
 
           const delAreaBtn = document.createElement("button");
-          delAreaBtn.className = "mini danger";
+          delAreaBtn.className = "btn danger";
           delAreaBtn.textContent = "구역 삭제";
           delAreaBtn.addEventListener("click", () => {
             const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
@@ -476,16 +718,18 @@
             deleteArea(areaName);
           });
 
-          wrap.appendChild(title);
-          wrap.appendChild(addSel);
-          wrap.appendChild(addBtn);
-          wrap.appendChild(delAreaBtn);
+          right.appendChild(addSel);
+          right.appendChild(addBtn);
+          right.appendChild(delAreaBtn);
 
-          tdArea.appendChild(wrap);
+          bar.appendChild(left);
+          bar.appendChild(right);
+
+          tdArea.appendChild(bar);
           areaTr.appendChild(tdArea);
           tbody.appendChild(areaTr);
 
-          // (하위) 주기 항목이 없으면 안내 한 줄
+          // No tasks row
           if (areaTasks.length === 0) {
             const tr = document.createElement("tr");
             tr.className = "task-row";
@@ -499,12 +743,12 @@
             continue;
           }
 
-          // (하위) 주기별 한 줄씩 추가되는 느낌
+          // Task rows
           for (const t of areaTasks) {
             const tr = document.createElement("tr");
             tr.className = "task-row";
 
-            // 구역/주기
+            // name/cycle
             const tdName = document.createElement("td");
             const nameWrap = document.createElement("div");
             nameWrap.className = "inline";
@@ -513,14 +757,14 @@
             arrow.textContent = "└";
 
             const cycleChip = document.createElement("span");
-            cycleChip.className = "chip cycle-chip " + cycleChipClass(t.cycle);
+            cycleChip.className = "chip " + cycleChipClass(t.cycle);
             cycleChip.textContent = cycleLabel(t.cycle);
 
             nameWrap.appendChild(arrow);
             nameWrap.appendChild(cycleChip);
             tdName.appendChild(nameWrap);
 
-            // 상태
+            // status
             const tdStatus = document.createElement("td");
             const badge = document.createElement("span");
             badge.className = "badge " + (t.status === "O" ? "o" : "x");
@@ -532,14 +776,14 @@
             badge.appendChild(st);
             tdStatus.appendChild(badge);
 
-            // 다음 리셋까지 (셀만 갱신)
+            // countdown
             const tdCd = document.createElement("td");
             tdCd.className = "countdown-cell";
             tdCd.dataset.cycle = t.cycle;
             const nextUtc = nextResetUtcMsByCycle(t.cycle, now);
             tdCd.textContent = formatCountdown(nextUtc - now.getTime());
 
-            // 상태 변경 시점
+            // changed time
             const tdChanged = document.createElement("td");
             tdChanged.className = "time-cell";
             tdChanged.textContent = kstText(t.status_changed_at);
@@ -548,25 +792,25 @@
             sub.textContent = "KST 기준";
             tdChanged.appendChild(sub);
 
-            // 선택
+            // actions
             const tdAct = document.createElement("td");
             const actWrap = document.createElement("div");
             actWrap.className = "row-actions";
 
             const oBtn = document.createElement("button");
-            oBtn.className = "ox ox-o";
+            oBtn.className = "btn ox ox-o";
             oBtn.textContent = "O";
             oBtn.disabled = (t.status === "O");
             oBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "O"));
 
             const xBtn = document.createElement("button");
-            xBtn.className = "ox ox-x";
+            xBtn.className = "btn ox ox-x";
             xBtn.textContent = "X";
             xBtn.disabled = (t.status === "X");
             xBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "X"));
 
             const delTaskBtn = document.createElement("button");
-            delTaskBtn.className = "danger";
+            delTaskBtn.className = "btn danger";
             delTaskBtn.textContent = "항목 삭제";
             delTaskBtn.addEventListener("click", () => {
               const ok = confirm(`'${areaName}' ${cycleLabel(t.cycle)} 항목을 삭제할까요?`);
@@ -591,7 +835,7 @@
         updateSummary();
       }
 
-      // 카운트다운만 업데이트(테이블 전체 rerender 금지 => UI/포커스 유지)
+      // countdown only tick
       function tickCountdownOnly() {
         const now = new Date();
         const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
@@ -648,8 +892,3 @@
   </script>
 </body>
 </html>
-
-
-
-
-
