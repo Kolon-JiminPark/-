@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>생산구역 청소 체크</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+    body { margin: 0; background: #f6f7f9; color: #111; }
+    .wrap { max-width: 1160px; margin: 32px auto; padding: 0 16px; }
+    .card { background: #fff; border: 1px solid #e6e8ec; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+    .header { padding: 18px 18px 12px 18px; }
+    h1 { margin: 0; font-size: 18px; }
+
+    .now-time { margin-top: 10px; font-size: 15px; font-weight: 650; color: #2f6fed; }
+    .sub { margin-top: 8px; font-size: 14px; color: #666; line-height: 1.6; }
+
+    .pill {
+      font-size: 12px; padding: 6px 10px; border-radius: 999px;
+      border: 1px solid #d5d9e0; background: #fff; color: #333; font-weight: 600;
+    }
+    .top-row { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+
+    .controls { display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; padding: 12px 18px 18px 18px; }
+    input[type="text"] { padding: 10px 12px; border: 1px solid #d5d9e0; border-radius: 10px; outline: none; }
+    button { padding: 10px 12px; border: 1px solid #d5d9e0; background: #fff; border-radius: 10px; cursor: pointer; }
+    button.primary { border-color: #2f6fed; background: #2f6fed; color: #fff; }
+    button.danger { border-color: #e05757; background: #fff; color: #b61f1f; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    button.ox { min-width: 44px; padding: 10px 14px; font-weight: 800; border: 1px solid transparent; letter-spacing: .3px; }
+    button.ox-o { background: #2db36b; border-color: #229957; color: #fff; }
+    button.ox-x { background: #e05757; border-color: #c94747; color: #fff; }
+    button.ox:disabled { opacity: .35; filter: grayscale(35%); }
+
+    select.cycle {
+      padding: 10px 10px;
+      border: 1px solid #d5d9e0;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .content { padding: 0 18px 18px 18px; }
+    table { width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 12px; border: 1px solid #e6e8ec; }
+    thead th { text-align: left; font-size: 12px; color: #666; background: #fafbfc; border-bottom: 1px solid #e6e8ec; padding: 10px 12px; }
+    tbody td { padding: 12px; border-bottom: 1px solid #f0f2f5; vertical-align: middle; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .badge { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .x .dot { background: #e05757; }
+    .o .dot { background: #2db36b; }
+
+    .row-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; align-items: center; }
+    .muted { color: #666; font-size: 12px; }
+    .time-cell { font-size: 12px; color: #333; }
+    .time-cell .small { display: block; font-size: 11px; color: #666; margin-top: 2px; }
+    .countdown-cell { font-size: 12px; font-weight: 700; color: #2f6fed; }
+
+    .footer { padding: 0 18px 18px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .toast { margin-top: 10px; font-size: 12px; color: #0b5; display: none; }
+    .toast.err { color: #b61f1f; }
+
+    @media (max-width: 920px) {
+      .controls { grid-template-columns: 1fr; }
+      .row-actions { justify-content: flex-start; }
+      .footer { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="header">
+        <h1>생산구역 청소 체크</h1>
+
+        <div id="nowTime" class="now-time">현재 시각: -</div>
+
+        <div class="top-row">
+          <div class="pill" id="syncState">동기화: -</div>
+          <div class="pill" id="resetState">자동리셋: -</div>
+          <div class="pill" id="lastResetLog">마지막 초기화: -</div>
+        </div>
+
+        <div class="sub">
+          구역별로 청소 주기를 <b>주간/월간/분기</b>로 선택할 수 있습니다.<br/>
+          자동 리셋은 서버(Supabase Cron)가 수행하며, <b>청소 상태(status)만 X로</b> 리셋됩니다.
+        </div>
+
+        <div id="toast" class="toast"></div>
+      </div>
+
+     <div class="controls">
+  <input id="areaInput" type="text" placeholder="청소 구역 이름 (예: 준비실)" />
+
+  <select id="newCycle" class="cycle" aria-label="새 구역 주기">
+    <option value="weekly" selected>주간청소</option>
+    <option value="monthly">월간청소</option>
+    <option value="quarterly">분기청소</option>
+  </select>
+
+  <button id="addBtn" class="primary">구역 추가</button>
+  <button id="resetBtn" class="danger">전체 초기화 (X)</button>
+</div>
+
+
+      <div class="content">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 18%;">구역</th>
+              <th style="width: 10%;">상태</th>
+              <th style="width: 16%;">주기</th>
+              <th style="width: 18%;">다음 리셋까지</th>
+              <th style="width: 20%;">상태 변경 시점</th>
+              <th style="width: 18%;">선택</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        <div class="muted">공유 저장소: Supabase</div>
+        <div class="muted" id="summaryLabel">총 0개 (O: 0 / X: 0)</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      // =========================
+      // Supabase 설정값 입력
+      // =========================
+      const SUPABASE_URL = "https://lojyvnojinrsxefzrdle.supabase.co";
+      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
+
+      if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_SUPABASE_URL_HERE") ||
+          !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY_HERE")) {
+        alert("SUPABASE_URL / SUPABASE_ANON_KEY를 먼저 입력하세요. (Supabase Settings → API)");
+      }
+
+      const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Elements
+      const toastEl = document.getElementById("toast");
+      const nowTimeEl = document.getElementById("nowTime");
+      const syncStateEl = document.getElementById("syncState");
+      const resetStateEl = document.getElementById("resetState");
+      const lastResetLogEl = document.getElementById("lastResetLog");
+
+      const tbody = document.getElementById("tbody");
+      const summaryLabel = document.getElementById("summaryLabel");
+      const areaInput = document.getElementById("areaInput");
+      const addBtn = document.getElementById("addBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const newCycleEl = document.getElementById("newCycle");
+
+      // Toast
+      let toastTimer = null;
+      function toast(msg, isError = false) {
+        toastEl.textContent = msg;
+        toastEl.className = "toast" + (isError ? " err" : "");
+        toastEl.style.display = "block";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { toastEl.style.display = "none"; }, 2200);
+      }
+      function setSyncState(text) { syncStateEl.textContent = "동기화: " + text; }
+      function setResetState(text) { resetStateEl.textContent = "자동리셋: " + text; }
+
+      // KST formatters
+      const fmtNowKst = new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        weekday: "short",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false,
+      });
+
+      const fmtKstDateTime = new Intl.DateTimeFormat("ko-KR", {
+        timeZone: "Asia/Seoul",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+        hour12: false,
+      });
+
+      function tickNow() {
+        nowTimeEl.textContent = "현재 시각: " + fmtNowKst.format(new Date());
+      }
+
+      // ===== KST date parts =====
+      function getKstParts(date = new Date()) {
+        const fmt = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Seoul",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        });
+        const parts = fmt.formatToParts(date);
+        const map = {};
+        parts.forEach(p => { if (p.type !== "literal") map[p.type] = p.value; });
+        return {
+          y: Number(map.year),
+          m: Number(map.month),
+          d: Number(map.day),
+          weekday: map.weekday, // Sun, Mon, ...
+          hh: Number(map.hour),
+          mm: Number(map.minute),
+          ss: Number(map.second),
+        };
+      }
+
+      // KST local datetime -> UTC ms (KST=UTC+9, DST 없음)
+      function kstToUtcMs(y, m, d, hh = 0, mm = 0, ss = 0) {
+        return Date.UTC(y, m - 1, d, hh - 9, mm, ss);
+      }
+
+      function nextResetUtcMsByCycle(cycle, now = new Date()) {
+        const p = getKstParts(now);
+        const dowMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+        const dow = dowMap[p.weekday] ?? 0;
+
+        if (cycle === "weekly") {
+          // 다음 월요일 00:00 KST
+          const daysToNextMon = (8 - dow) % 7 || 7; // Mon=1이면 7일 후
+          const baseUtc = kstToUtcMs(p.y, p.m, p.d, 0, 0, 0);
+          return baseUtc + daysToNextMon * 86400000;
+        }
+
+        if (cycle === "monthly") {
+          // 다음 달 1일 00:00 KST
+          let ny = p.y;
+          let nm = p.m + 1;
+          if (nm === 13) { nm = 1; ny += 1; }
+          return kstToUtcMs(ny, nm, 1, 0, 0, 0);
+        }
+
+        // quarterly
+        const qStartMonth = p.m <= 3 ? 1 : p.m <= 6 ? 4 : p.m <= 9 ? 7 : 10;
+        let nextQMonth = qStartMonth + 3;
+        let ny = p.y;
+        if (nextQMonth === 13) { nextQMonth = 1; ny += 1; }
+        return kstToUtcMs(ny, nextQMonth, 1, 0, 0, 0);
+      }
+
+      function formatCountdown(ms) {
+        const totalSec = Math.max(0, Math.floor(ms / 1000));
+        const days = Math.floor(totalSec / 86400);
+        const rem1 = totalSec % 86400;
+        const hh = String(Math.floor(rem1 / 3600)).padStart(2, "0");
+        const rem2 = rem1 % 3600;
+        const mm = String(Math.floor(rem2 / 60)).padStart(2, "0");
+        const ss = String(rem2 % 60).padStart(2, "0");
+        return days > 0 ? `${days}일 ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+      }
+
+      // Data
+      let areas = []; // { name, status, cycle, status_changed_at }
+
+      // Sorting: weekly -> monthly -> quarterly, then name
+      function cycleRank(c) {
+        if (c === "weekly") return 0;
+        if (c === "monthly") return 1;
+        return 2; // quarterly
+      }
+
+      // Fetch / RPC
+      async function fetchAreas() {
+        setSyncState("불러오는 중...");
+        const { data, error } = await supa
+          .from("cleaning_areas")
+          .select("name,status,cycle,status_changed_at")
+          .order("name", { ascending: true });
+
+        if (error) {
+          setSyncState("오류");
+          toast("데이터 조회 실패: " + error.message, true);
+          return;
+        }
+
+        areas = (data || []).sort((a, b) => {
+          const ra = cycleRank(a.cycle);
+          const rb = cycleRank(b.cycle);
+          if (ra !== rb) return ra - rb;
+          return a.name.localeCompare(b.name, "ko");
+        });
+
+        setSyncState("정상");
+        render();
+      }
+
+      async function fetchLastResetLog() {
+        const { data, error } = await supa
+          .from("cleaning_reset_logs")
+          .select("reset_at")
+          .order("reset_at", { ascending: false })
+          .limit(1);
+
+        if (error || !data || data.length === 0) {
+          lastResetLogEl.textContent = "마지막 초기화: -";
+          return;
+        }
+
+        const d = new Date(data[0].reset_at);
+        lastResetLogEl.textContent = "마지막 초기화: " + (isNaN(d.getTime()) ? "-" : fmtKstDateTime.format(d));
+      }
+
+      // Cron이 정각에 실행하지만, 접속 시 캐치업(필요 시) 1회 호출
+      async function runResetCatchUpOnce() {
+        setResetState("체크 중...");
+        const { data, error } = await supa.rpc("reset_due_areas_kst");
+        if (error) {
+          setResetState("오류");
+          return;
+        }
+        const affected = Number(data || 0);
+        setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
+        await fetchLastResetLog();
+        if (affected > 0) await fetchAreas();
+      }
+
+   async function addArea(name, cycle) {
+  setSyncState("저장 중...");
+  const isoNow = new Date().toISOString();
+
+  const { error } = await supa
+    .from("cleaning_areas")
+    .insert([{ name, status: "X", cycle: cycle, status_changed_at: isoNow }]);
+
+  if (error) {
+    setSyncState("오류");
+    toast("구역 추가 실패: " + error.message, true);
+    return;
+  }
+
+  setSyncState("정상");
+  toast(`'${name}' 구역이 추가되었습니다. (X / ${
+    cycle === "weekly" ? "주간" : cycle === "monthly" ? "월간" : "분기"
+  })`);
+
+  await fetchAreas();
+}
+
+      async function setStatus(name, status) {
+        setSyncState("저장 중...");
+        const isoNow = new Date().toISOString();
+        const { error } = await supa
+          .from("cleaning_areas")
+          .update({ status, status_changed_at: isoNow })
+          .eq("name", name);
+
+        if (error) {
+          setSyncState("오류");
+          toast("상태 변경 실패: " + error.message, true);
+          return;
+        }
+
+        setSyncState("정상");
+        await fetchAreas();
+      }
+
+async function setCycle(name, cycle) {
+  // 1) UI가 사라지는 원인(fetchAreas/재렌더)을 즉시 하지 않고,
+  //    로컬 데이터부터 업데이트해서 화면을 유지합니다.
+  const idx = areas.findIndex(a => a.name === name);
+  const prev = (idx >= 0) ? areas[idx].cycle : null;
+
+  if (idx >= 0) {
+    areas[idx].cycle = cycle;     // 로컬 반영
+    // 정렬이 바뀌더라도 "사용자가 조작 중"에는 이동하면 불편하므로
+    // 여기서는 정렬/재렌더를 최소화하기 위해 render는 하지 않습니다.
+    // 단, 카운트다운 등은 다음 tick에 자연스럽게 갱신됩니다.
+  }
+
+  setSyncState("저장 중...");
+
+  const { error } = await supa
+    .from("cleaning_areas")
+    .update({ cycle })
+    .eq("name", name);
+
+  if (error) {
+    // 저장 실패 → 롤백
+    if (idx >= 0 && prev) areas[idx].cycle = prev;
+    setSyncState("오류");
+    toast("주기 변경 실패: " + error.message, true);
+    return;
+  }
+
+  setSyncState("정상");
+  toast(`'${name}' 주기가 변경되었습니다.`);
+
+  setTimeout(() => {
+    fetchAreas();
+    fetchLastResetLog();
+  }, 250);
+}
+
+      async function deleteArea(name) {
+        setSyncState("저장 중...");
+        const { error } = await supa
+          .from("cleaning_areas")
+          .delete()
+          .eq("name", name);
+
+        if (error) {
+          setSyncState("오류");
+          toast("삭제 실패: " + error.message, true);
+          return;
+        }
+
+        setSyncState("정상");
+        await fetchAreas();
+      }
+
+      async function resetAllToX() {
+        setSyncState("저장 중...");
+        const isoNow = new Date().toISOString();
+        const { error } = await supa
+          .from("cleaning_areas")
+          .update({ status: "X", status_changed_at: isoNow })
+          .neq("status", "X");
+
+        if (error) {
+          setSyncState("오류");
+          toast("전체 초기화 실패: " + error.message, true);
+          return;
+        }
+
+        setSyncState("정상");
+        toast("전체 초기화 완료 (상태: X)");
+        await fetchAreas();
+      }
+
+      // Render
+      function updateSummary() {
+        const oCount = areas.filter(a => a.status === "O").length;
+        const xCount = areas.filter(a => a.status === "X").length;
+        summaryLabel.textContent = `총 ${areas.length}개 (O: ${oCount} / X: ${xCount})`;
+      }
+
+      function kstText(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return "—";
+        return fmtKstDateTime.format(d);
+      }
+
+      function render() {
+        tbody.innerHTML = "";
+
+        if (!areas.length) {
+          const tr = document.createElement("tr");
+          const td = document.createElement("td");
+          td.colSpan = 6;
+          td.className = "muted";
+          td.style.padding = "16px 12px";
+          td.textContent = "등록된 청소 구역이 없습니다. 상단에서 구역을 추가하세요.";
+          tr.appendChild(td);
+          tbody.appendChild(tr);
+          updateSummary();
+          return;
+        }
+
+        const now = new Date();
+
+        for (const row of areas) {
+          const tr = document.createElement("tr");
+
+          const tdName = document.createElement("td");
+          tdName.textContent = row.name;
+
+          const tdStatus = document.createElement("td");
+          const badge = document.createElement("span");
+          badge.className = "badge " + (row.status === "O" ? "o" : "x");
+          const dot = document.createElement("span");
+          dot.className = "dot";
+          const st = document.createElement("span");
+          st.textContent = row.status;
+          badge.appendChild(dot);
+          badge.appendChild(st);
+          tdStatus.appendChild(badge);
+
+          const tdCycle = document.createElement("td");
+          const sel = document.createElement("select");
+          sel.className = "cycle";
+          const opts = [
+            { v: "weekly", t: "주간청소" },
+            { v: "monthly", t: "월간청소" },
+            { v: "quarterly", t: "분기청소" }
+          ];
+          for (const o of opts) {
+            const op = document.createElement("option");
+            op.value = o.v;
+            op.textContent = o.t;
+            if (row.cycle === o.v) op.selected = true;
+            sel.appendChild(op);
+          }
+          sel.addEventListener("change", () => setCycle(row.name, sel.value));
+          tdCycle.appendChild(sel);
+
+          const tdCd = document.createElement("td");
+          tdCd.className = "countdown-cell";
+          tdCd.dataset.cycle = row.cycle;           // 추가
+          const nextUtc = nextResetUtcMsByCycle(row.cycle, now);
+          tdCd.textContent = formatCountdown(nextUtc - now.getTime());
+
+          const tdChanged = document.createElement("td");
+          tdChanged.className = "time-cell";
+          tdChanged.textContent = kstText(row.status_changed_at);
+          const sub = document.createElement("span");
+          sub.className = "small";
+          sub.textContent = "KST 기준";
+          tdChanged.appendChild(sub);
+
+          const tdAct = document.createElement("td");
+          const actWrap = document.createElement("div");
+          actWrap.className = "row-actions";
+
+          const oBtn = document.createElement("button");
+          oBtn.className = "ox ox-o";
+          oBtn.textContent = "O";
+          oBtn.disabled = (row.status === "O");
+          oBtn.addEventListener("click", () => setStatus(row.name, "O"));
+
+          const xBtn = document.createElement("button");
+          xBtn.className = "ox ox-x";
+          xBtn.textContent = "X";
+          xBtn.disabled = (row.status === "X");
+          xBtn.addEventListener("click", () => setStatus(row.name, "X"));
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "danger";
+          delBtn.textContent = "삭제";
+          delBtn.addEventListener("click", () => {
+            const ok = confirm(`'${row.name}' 구역을 삭제할까요?`);
+            if (!ok) return;
+            deleteArea(row.name);
+          });
+
+          actWrap.appendChild(oBtn);
+          actWrap.appendChild(xBtn);
+          actWrap.appendChild(delBtn);
+          tdAct.appendChild(actWrap);
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdStatus);
+          tr.appendChild(tdCycle);
+          tr.appendChild(tdCd);
+          tr.appendChild(tdChanged);
+          tr.appendChild(tdAct);
+
+          tbody.appendChild(tr);
+        }
+
+        updateSummary();
+      }
+
+      // Re-render countdown every second without refetch
+      function tickCountdownOnly() {
+        const now = new Date();
+        const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
+        for (const cell of cells) {
+           const cycle = cell.dataset.cycle;
+           const nextUtc = nextResetUtcMsByCycle(cycle, now);
+           cell.textContent = formatCountdown(nextUtc - now.getTime());
+        }
+     }
+
+
+      // UI Events
+      function handleAdd() {
+      const name = (areaInput.value || "").trim();
+      if (!name) return toast("구역 이름을 입력하세요.", true);
+
+      const cycle = (newCycleEl && newCycleEl.value) ? newCycleEl.value : "weekly";
+
+      areaInput.value = "";
+      addArea(name, cycle);
+      }
+
+
+      addBtn.addEventListener("click", handleAdd);
+      areaInput.addEventListener("keydown", (e) => { if (e.key === "Enter") handleAdd(); });
+
+      resetBtn.addEventListener("click", () => {
+        const ok = confirm("모든 구역의 상태를 X로 초기화할까요? (구역은 유지됩니다)");
+        if (!ok) return;
+        resetAllToX();
+      });
+
+      // Boot
+      async function boot() {
+        tickNow();
+        setInterval(tickNow, 1000);
+
+        await runResetCatchUpOnce(); // 접속 시 서버 상태 최신화(자동리셋 캐치업)
+        await fetchAreas();
+        await fetchLastResetLog();
+
+        // 각 구역 카운트다운은 1초마다 갱신
+        setInterval(tickCountdownOnly, 1000);
+      }
+
+      boot();
+    })();
+  </script>
+</body>
+</html>
