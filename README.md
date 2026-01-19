@@ -76,7 +76,7 @@
   <div class="wrap">
     <div class="card">
       <div class="header">
-        <h1>생산구역 청소 체크_V1</h1>
+        <h1>생산구역 청소 체크 V1</h1>
 
         <div id="nowTime" class="now-time">현재 시각: -</div>
 
