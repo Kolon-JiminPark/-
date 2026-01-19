@@ -12,11 +12,9 @@
     body { margin: 0; background: #f6f7f9; color: #111; }
     .wrap { max-width: 1180px; margin: 32px auto; padding: 0 16px; }
     .card { background: #fff; border: 1px solid #e6e8ec; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
-
     .header { padding: 18px 18px 12px 18px; }
     h1 { margin: 0; font-size: 18px; }
     .now-time { margin-top: 10px; font-size: 16px; font-weight: 750; color: #2f6fed; }
-
     .sub { margin-top: 10px; font-size: 14px; color: #666; line-height: 1.7; }
     .pill { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #d5d9e0; background: #fff; color: #333; font-weight: 650; }
     .top-row { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
@@ -43,7 +41,6 @@
     .muted { color: #666; font-size: 12px; }
     .time-cell { font-size: 12px; color: #333; }
     .time-cell .small { display: block; font-size: 11px; color: #666; margin-top: 2px; }
-
     .countdown-cell { font-size: 12px; font-weight: 750; color: #2f6fed; white-space: nowrap; }
 
     .footer { padding: 0 18px 18px 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -57,16 +54,23 @@
 
     select { padding: 10px 10px; border: 1px solid #d5d9e0; border-radius: 10px; background: #fff; }
     .mini { padding: 8px 10px; border-radius: 10px; font-size: 12px; }
-    .chip { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #d5d9e0; background: #fff; font-weight: 700; }
+    .chip { font-size: 12px; padding: 6px 10px; border-radius: 999px; border: 1px solid #d5d9e0; background: #fff; font-weight: 750; }
 
-    .area-title { font-weight: 850; }
-    .cycle-chip { margin-left: 8px; }
+    /* 구역 행(상위) */
+    tr.area-row td {
+      background: #fbfcfe;
+      border-bottom: 1px solid #e6e8ec;
+    }
+    .area-title { font-weight: 900; }
+    .inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+    /* 하위(주기) 행 */
+    tr.task-row td:first-child { padding-left: 28px; }
+    .cycle-chip { margin-left: 6px; }
+
     .cycle-weekly { border-color: rgba(47,111,237,.35); }
     .cycle-monthly { border-color: rgba(45,179,107,.35); }
     .cycle-quarterly { border-color: rgba(224,87,87,.35); }
-
-    .inline { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .divider { height: 1px; background: #f0f2f5; margin: 10px 0; }
 
     @media (max-width: 980px) {
       .controls { grid-template-columns: 1fr; }
@@ -80,8 +84,7 @@
   <div class="wrap">
     <div class="card">
       <div class="header">
-        <h1>생산구역 청소 체크_V2</h1>
-
+        <h1>생산구역 청소 체크</h1>
         <div id="nowTime" class="now-time">현재 시각: -</div>
 
         <div class="top-row">
@@ -92,7 +95,7 @@
         </div>
 
         <div class="sub">
-          구역(예: 준비실)을 먼저 등록한 뒤, 해당 구역에 대해 <b>주간/월간/분기</b> 항목을 추가할 수 있습니다.<br/>
+          구역(예: 준비실)을 먼저 등록하고, 해당 구역 아래에 <b>주간/월간/분기</b> 항목을 “밑줄로” 추가하는 방식입니다.<br/>
           자동 리셋은 서버(Supabase Cron)가 수행하며, <b>청소 상태(status)만 X로</b> 리셋됩니다.
         </div>
 
@@ -113,22 +116,16 @@
               <th style="width: 10%;">상태</th>
               <th style="width: 18%;">다음 리셋까지</th>
               <th style="width: 22%;">상태 변경 시점</th>
-              <th style="width: 28%;">작업</th>
+              <th style="width: 28%;">선택</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
         </table>
-
-        <div class="divider"></div>
-
-        <div class="muted">
-          팁: 구역을 만든 뒤 “주기 항목 추가”를 눌러 주간/월간/분기를 여러 개 붙일 수 있습니다.
-        </div>
       </div>
 
       <div class="footer">
         <div class="muted">공유 저장소: Supabase</div>
-        <div class="muted" id="summaryLabel">총 0개 (O: 0 / X: 0)</div>
+        <div class="muted" id="summaryLabel">항목 0개 (O: 0 / X: 0)</div>
       </div>
     </div>
   </div>
@@ -140,8 +137,8 @@
       // =========================
       // Supabase 설정값 입력
       // =========================
-      const SUPABASE_URL = "https://lojyvnojinrsxefzrdle.supabase.co";
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
+      const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+      const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY_HERE";
 
       // 화면 버전 표기(수정할 때마다 바꿔두면 팀원 버전 확인 쉬움)
       const BUILD_VERSION = "2026-01-19.v2";
@@ -223,9 +220,6 @@
           m: Number(map.month),
           d: Number(map.day),
           weekday: map.weekday, // Sun, Mon, ...
-          hh: Number(map.hour),
-          mm: Number(map.minute),
-          ss: Number(map.second),
         };
       }
 
@@ -271,32 +265,28 @@
         return days > 0 ? `${days}일 ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
       }
 
-      // ===== Data in-memory =====
-      // areas: ["준비실","창고"...]
-      // tasks: [{area_name, cycle, status, status_changed_at}]
-      let areas = [];
-      let tasks = [];
-
-      // Sorting: area_name asc, cycle weekly->monthly->quarterly
-      function cycleRank(c) {
-        if (c === "weekly") return 0;
-        if (c === "monthly") return 1;
-        return 2;
-      }
-
-      function cycleLabel(c) {
-        return c === "weekly" ? "주간" : c === "monthly" ? "월간" : "분기";
-      }
-
-      function cycleChipClass(c) {
-        return c === "weekly" ? "cycle-weekly" : c === "monthly" ? "cycle-monthly" : "cycle-quarterly";
-      }
-
       function kstText(iso) {
         if (!iso) return "—";
         const d = new Date(iso);
         if (isNaN(d.getTime())) return "—";
         return fmtKstDateTime.format(d);
+      }
+
+      // ===== Data =====
+      let areas = []; // ["준비실","창고"...]
+      let tasks = []; // [{area_name, cycle, status, status_changed_at}]
+
+      // Sorting
+      function cycleRank(c) {
+        if (c === "weekly") return 0;
+        if (c === "monthly") return 1;
+        return 2;
+      }
+      function cycleLabel(c) {
+        return c === "weekly" ? "주간" : c === "monthly" ? "월간" : "분기";
+      }
+      function cycleChipClass(c) {
+        return c === "weekly" ? "cycle-weekly" : c === "monthly" ? "cycle-monthly" : "cycle-quarterly";
       }
 
       // =========================
@@ -307,7 +297,6 @@
           .from("cleaning_areas")
           .select("name")
           .order("name", { ascending: true });
-
         if (error) throw error;
         areas = (data || []).map(r => r.name);
       }
@@ -317,7 +306,6 @@
           .from("cleaning_area_tasks")
           .select("area_name,cycle,status,status_changed_at")
           .order("area_name", { ascending: true });
-
         if (error) throw error;
 
         tasks = (data || []).sort((a, b) => {
@@ -367,25 +355,16 @@
       async function addArea(name) {
         setSyncState("저장 중...");
         const { error } = await supa.from("cleaning_areas").insert([{ name }]);
-        if (error) {
-          setSyncState("오류");
-          toast("구역 추가 실패: " + error.message, true);
-          return;
-        }
+        if (error) { setSyncState("오류"); toast("구역 추가 실패: " + error.message, true); return; }
         setSyncState("정상");
         toast(`'${name}' 구역이 추가되었습니다.`);
         await loadAll();
       }
 
       async function deleteArea(name) {
-        // 구역 삭제 시 해당 구역의 tasks도 cascade 삭제
         setSyncState("저장 중...");
         const { error } = await supa.from("cleaning_areas").delete().eq("name", name);
-        if (error) {
-          setSyncState("오류");
-          toast("구역 삭제 실패: " + error.message, true);
-          return;
-        }
+        if (error) { setSyncState("오류"); toast("구역 삭제 실패: " + error.message, true); return; }
         setSyncState("정상");
         toast(`'${name}' 구역이 삭제되었습니다.`);
         await loadAll();
@@ -397,13 +376,7 @@
         const { error } = await supa
           .from("cleaning_area_tasks")
           .insert([{ area_name: areaName, cycle, status: "X", status_changed_at: isoNow }]);
-
-        if (error) {
-          setSyncState("오류");
-          // 이미 있으면 PK 충돌
-          toast("주기 항목 추가 실패: " + error.message, true);
-          return;
-        }
+        if (error) { setSyncState("오류"); toast("주기 항목 추가 실패: " + error.message, true); return; }
         setSyncState("정상");
         toast(`'${areaName}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
         await loadAll();
@@ -416,13 +389,7 @@
           .delete()
           .eq("area_name", areaName)
           .eq("cycle", cycle);
-
-        if (error) {
-          setSyncState("오류");
-          toast("주기 항목 삭제 실패: " + error.message, true);
-          return;
-        }
-
+        if (error) { setSyncState("오류"); toast("주기 항목 삭제 실패: " + error.message, true); return; }
         setSyncState("정상");
         toast(`'${areaName}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
         await loadAll();
@@ -436,18 +403,13 @@
           .update({ status, status_changed_at: isoNow })
           .eq("area_name", areaName)
           .eq("cycle", cycle);
-
-        if (error) {
-          setSyncState("오류");
-          toast("상태 변경 실패: " + error.message, true);
-          return;
-        }
+        if (error) { setSyncState("오류"); toast("상태 변경 실패: " + error.message, true); return; }
         setSyncState("정상");
         await loadAll();
       }
 
       // =========================
-      // Render helpers
+      // Render
       // =========================
       function updateSummary() {
         const oCount = tasks.filter(t => t.status === "O").length;
@@ -455,14 +417,9 @@
         summaryLabel.textContent = `항목 ${tasks.length}개 (O: ${oCount} / X: ${xCount})`;
       }
 
-      function getTask(areaName, cycle) {
-        return tasks.find(t => t.area_name === areaName && t.cycle === cycle) || null;
-      }
-
       function render() {
         tbody.innerHTML = "";
 
-        // 구역이 없으면 안내
         if (!areas.length) {
           const tr = document.createElement("tr");
           const td = document.createElement("td");
@@ -479,62 +436,59 @@
         const now = new Date();
 
         for (const areaName of areas) {
-          // 이 구역의 task들
-          const areaTasks = tasks.filter(t => t.area_name === areaName)
-                                 .sort((a, b) => cycleRank(a.cycle) - cycleRank(b.cycle));
+          const areaTasks = tasks
+            .filter(t => t.area_name === areaName)
+            .sort((a, b) => cycleRank(a.cycle) - cycleRank(b.cycle));
 
-          // 구역 헤더 행(구역명 + 주기추가/삭제 버튼)
-          {
-            const tr = document.createElement("tr");
+          // (상위) 구역 한 줄: 원래 입력 방식 느낌
+          const areaTr = document.createElement("tr");
+          areaTr.className = "area-row";
 
-            const tdA = document.createElement("td");
-            tdA.colSpan = 5;
+          const tdArea = document.createElement("td");
+          tdArea.colSpan = 5;
 
-            const left = document.createElement("div");
-            left.className = "inline";
+          const wrap = document.createElement("div");
+          wrap.className = "inline";
 
-            const title = document.createElement("span");
-            title.className = "area-title";
-            title.textContent = areaName;
+          const title = document.createElement("span");
+          title.className = "area-title";
+          title.textContent = areaName;
 
-            const addSel = document.createElement("select");
-            addSel.className = "mini";
-            addSel.innerHTML = `
-              <option value="weekly">주간 추가</option>
-              <option value="monthly">월간 추가</option>
-              <option value="quarterly">분기 추가</option>
-            `;
+          const addSel = document.createElement("select");
+          addSel.className = "mini";
+          addSel.innerHTML = `
+            <option value="weekly">주간 추가</option>
+            <option value="monthly">월간 추가</option>
+            <option value="quarterly">분기 추가</option>
+          `;
 
-            const addBtn = document.createElement("button");
-            addBtn.className = "mini primary";
-            addBtn.textContent = "주기 항목 추가";
+          const addBtn = document.createElement("button");
+          addBtn.className = "mini primary";
+          addBtn.textContent = "주기 항목 추가";
+          addBtn.addEventListener("click", () => addTask(areaName, addSel.value));
 
-            addBtn.addEventListener("click", () => {
-              addTask(areaName, addSel.value);
-            });
+          const delAreaBtn = document.createElement("button");
+          delAreaBtn.className = "mini danger";
+          delAreaBtn.textContent = "구역 삭제";
+          delAreaBtn.addEventListener("click", () => {
+            const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
+            if (!ok) return;
+            deleteArea(areaName);
+          });
 
-            const delAreaBtn = document.createElement("button");
-            delAreaBtn.className = "mini danger";
-            delAreaBtn.textContent = "구역 삭제";
-            delAreaBtn.addEventListener("click", () => {
-              const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
-              if (!ok) return;
-              deleteArea(areaName);
-            });
+          wrap.appendChild(title);
+          wrap.appendChild(addSel);
+          wrap.appendChild(addBtn);
+          wrap.appendChild(delAreaBtn);
 
-            left.appendChild(title);
-            left.appendChild(addSel);
-            left.appendChild(addBtn);
-            left.appendChild(delAreaBtn);
+          tdArea.appendChild(wrap);
+          areaTr.appendChild(tdArea);
+          tbody.appendChild(areaTr);
 
-            tdA.appendChild(left);
-            tr.appendChild(tdA);
-            tbody.appendChild(tr);
-          }
-
-          // 이 구역의 task가 없으면(구역만 있고 항목이 없는 상태)
+          // (하위) 주기 항목이 없으면 안내 한 줄
           if (areaTasks.length === 0) {
             const tr = document.createElement("tr");
+            tr.className = "task-row";
             const td = document.createElement("td");
             td.colSpan = 5;
             td.className = "muted";
@@ -545,23 +499,24 @@
             continue;
           }
 
-          // task rows
+          // (하위) 주기별 한 줄씩 추가되는 느낌
           for (const t of areaTasks) {
             const tr = document.createElement("tr");
+            tr.className = "task-row";
 
             // 구역/주기
             const tdName = document.createElement("td");
             const nameWrap = document.createElement("div");
             nameWrap.className = "inline";
 
-            const areaSpan = document.createElement("span");
-            areaSpan.textContent = "↳ " + areaName;
+            const arrow = document.createElement("span");
+            arrow.textContent = "└";
 
             const cycleChip = document.createElement("span");
             cycleChip.className = "chip cycle-chip " + cycleChipClass(t.cycle);
             cycleChip.textContent = cycleLabel(t.cycle);
 
-            nameWrap.appendChild(areaSpan);
+            nameWrap.appendChild(arrow);
             nameWrap.appendChild(cycleChip);
             tdName.appendChild(nameWrap);
 
@@ -577,7 +532,7 @@
             badge.appendChild(st);
             tdStatus.appendChild(badge);
 
-            // 다음 리셋까지 (셀만 갱신 가능하도록 data-cycle)
+            // 다음 리셋까지 (셀만 갱신)
             const tdCd = document.createElement("td");
             tdCd.className = "countdown-cell";
             tdCd.dataset.cycle = t.cycle;
@@ -593,7 +548,7 @@
             sub.textContent = "KST 기준";
             tdChanged.appendChild(sub);
 
-            // 작업
+            // 선택
             const tdAct = document.createElement("td");
             const actWrap = document.createElement("div");
             actWrap.className = "row-actions";
@@ -629,7 +584,6 @@
             tr.appendChild(tdCd);
             tr.appendChild(tdChanged);
             tr.appendChild(tdAct);
-
             tbody.appendChild(tr);
           }
         }
@@ -637,7 +591,7 @@
         updateSummary();
       }
 
-      // 카운트다운만 업데이트(테이블 전체 rerender 금지 => 드롭다운/입력 포커스 유지)
+      // 카운트다운만 업데이트(테이블 전체 rerender 금지 => UI/포커스 유지)
       function tickCountdownOnly() {
         const now = new Date();
         const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
@@ -694,5 +648,6 @@
   </script>
 </body>
 </html>
+
 
 
