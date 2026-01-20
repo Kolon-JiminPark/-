@@ -110,7 +110,10 @@
       outline:none;
       background:#fff;
     }
-    input[type="text"]:focus{ border-color: rgba(47,111,237,.55); box-shadow: 0 0 0 4px rgba(47,111,237,.12); }
+    input[type="text"]:focus{
+      border-color: rgba(47,111,237,.55);
+      box-shadow: 0 0 0 4px rgba(47,111,237,.12);
+    }
 
     select{
       height:var(--h-btn);
@@ -135,6 +138,7 @@
       gap:8px;
       white-space:nowrap;
       transition: transform .04s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
+      user-select:none;
     }
     .btn:active{ transform: translateY(1px); }
     .btn:disabled{ opacity:.55; cursor:not-allowed; }
@@ -220,10 +224,7 @@
       gap:10px;
       min-width: 240px;
     }
-    .area-title{
-      font-weight:950;
-      letter-spacing:-.2px;
-    }
+    .area-title{ font-weight:950; letter-spacing:-.2px; }
     .area-right{
       display:flex;
       align-items:center;
@@ -352,8 +353,7 @@
       const SUPABASE_URL = "https://lojyvnojinrsxefzrdle.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
 
-      // 화면 버전 표기
-      const BUILD_VERSION = "2026-01-19.v2.ui-polish+fk-fix";
+      const BUILD_VERSION = "2026-01-20.v2.ui+fk+fast-buttons";
 
       const buildInfoEl = document.getElementById("buildInfo");
       buildInfoEl.textContent = "버전: " + BUILD_VERSION;
@@ -379,23 +379,23 @@
       const addAreaBtn = document.getElementById("addAreaBtn");
       const resetCatchUpBtn = document.getElementById("resetCatchUpBtn");
 
-      // ======= 중요: 문자열 정규화 (FK 불일치 방지) =======
-      // - 앞/뒤 공백 제거
-      // - 연속 공백 1개로
-      // - NBSP(특수 공백) 제거/치환
-      // - 유니코드 정규화(NFKC)로 비슷한 문자 통일
+      // =========================
+      // String normalize (FK mismatch 방지)
+      // =========================
       function normName(s) {
         let v = (s ?? "");
         v = String(v);
-        v = v.replace(/\u00A0/g, " ");     // NBSP -> space
-        v = v.replace(/\u2009/g, " ");     // thin space -> space
-        v = v.replace(/\u2002|\u2003/g, " "); // en/em space -> space
+        v = v.replace(/\u00A0/g, " ");          // NBSP
+        v = v.replace(/\u2009/g, " ");          // thin space
+        v = v.replace(/\u2002|\u2003/g, " ");   // en/em space
         try { v = v.normalize("NFKC"); } catch (_) {}
         v = v.trim().replace(/\s+/g, " ");
         return v;
       }
 
+      // =========================
       // Toast
+      // =========================
       let toastTimer = null;
       function toast(msg, isError = false) {
         toastEl.textContent = msg;
@@ -407,17 +407,31 @@
       function setSyncState(text) { syncStateEl.textContent = "동기화: " + text; }
       function setResetState(text) { resetStateEl.textContent = "자동리셋: " + text; }
 
-      // Global busy lock (중복 클릭/타이밍 이슈 방지)
-      let busy = false;
-      function setBusy(v) {
-        busy = v;
-        addAreaBtn.disabled = v;
-        resetCatchUpBtn.disabled = v;
-        areaInput.disabled = v;
-        // 테이블 내 버튼들도 함께 잠그려면 렌더에서 busy 반영
+      // =========================
+      // Button lock (버튼 단위 잠금)
+      // =========================
+      async function withButtonLock(btn, fn, cooldownMs = 350) {
+        if (!btn || btn.disabled) return;
+        const prev = btn.textContent;
+        btn.disabled = true;
+        btn.dataset._lock = "1";
+        try {
+          await fn();
+        } finally {
+          window.setTimeout(() => {
+            btn.disabled = false;
+            btn.dataset._lock = "";
+            // 혹시 텍스트 바꿨다면 복구
+            if (btn.textContent !== prev && btn.dataset._keepText !== "1") {
+              btn.textContent = prev;
+            }
+          }, cooldownMs);
+        }
       }
 
+      // =========================
       // KST formatters
+      // =========================
       const fmtNowKst = new Intl.DateTimeFormat("ko-KR", {
         timeZone: "Asia/Seoul",
         year: "numeric", month: "2-digit", day: "2-digit",
@@ -457,11 +471,11 @@
           y: Number(map.year),
           m: Number(map.month),
           d: Number(map.day),
-          weekday: map.weekday, // Sun, Mon, ...
+          weekday: map.weekday,
         };
       }
 
-      // KST local datetime -> UTC ms (KST=UTC+9, DST 없음)
+      // KST local datetime -> UTC ms
       function kstToUtcMs(y, m, d, hh = 0, mm = 0, ss = 0) {
         return Date.UTC(y, m - 1, d, hh - 9, mm, ss);
       }
@@ -472,7 +486,7 @@
         const dow = dowMap[p.weekday] ?? 0;
 
         if (cycle === "weekly") {
-          const daysToNextMon = (8 - dow) % 7 || 7; // 다음 월요일
+          const daysToNextMon = (8 - dow) % 7 || 7;
           const baseUtc = kstToUtcMs(p.y, p.m, p.d, 0, 0, 0);
           return baseUtc + daysToNextMon * 86400000;
         }
@@ -507,7 +521,9 @@
         return fmtKstDateTime.format(d);
       }
 
-      // ===== Data =====
+      // =========================
+      // Data
+      // =========================
       let areas = [];
       let tasks = [];
 
@@ -532,8 +548,6 @@
           .select("name")
           .order("name", { ascending: true });
         if (error) throw error;
-
-        // DB에서 온 값도 혹시 몰라 정규화된 형태로만 사용(표시도 동일하게)
         areas = (data || []).map(r => normName(r.name));
       }
 
@@ -567,169 +581,6 @@
         }
         const d = new Date(data[0].reset_at);
         lastResetLogEl.textContent = "마지막 초기화: " + (isNaN(d.getTime()) ? "-" : fmtKstDateTime.format(d));
-      }
-
-      // =========================
-      // RPC: Reset catch-up
-      // =========================
-      async function runResetCatchUpOnce() {
-        if (busy) return;
-        setBusy(true);
-        setResetState("체크 중...");
-        try {
-          const { data, error } = await supa.rpc("reset_due_tasks_kst");
-          if (error) throw error;
-
-          const affected = Number(data || 0);
-          setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
-          await fetchLastResetLog();
-          if (affected > 0) {
-            await loadAll();
-          }
-        } catch (e) {
-          setResetState("오류");
-          toast("리셋 체크 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      // =========================
-      // Mutations
-      // =========================
-      async function addArea(name) {
-        const clean = normName(name);
-        if (!clean) return toast("구역 이름을 입력하세요.", true);
-        if (busy) return;
-        setBusy(true);
-        setSyncState("저장 중...");
-        try {
-          const { error } = await supa.from("cleaning_areas").insert([{ name: clean }]);
-          if (error) throw error;
-
-          setSyncState("정상");
-          toast(`'${clean}' 구역이 추가되었습니다.`);
-          await loadAll();
-        } catch (e) {
-          setSyncState("오류");
-          toast("구역 추가 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      async function deleteArea(name) {
-        const clean = normName(name);
-        if (busy) return;
-        setBusy(true);
-        setSyncState("저장 중...");
-        try {
-          const { error } = await supa.from("cleaning_areas").delete().eq("name", clean);
-          if (error) throw error;
-
-          setSyncState("정상");
-          toast(`'${clean}' 구역이 삭제되었습니다.`);
-          await loadAll();
-        } catch (e) {
-          setSyncState("오류");
-          toast("구역 삭제 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      // FK 에러 방지를 위해:
-      // 1) name 정규화
-      // 2) tasks insert 전에 cleaning_areas에 실제 존재하는지 1회 확인(없으면 안내)
-      async function ensureAreaExists(cleanAreaName) {
-        const { data, error } = await supa
-          .from("cleaning_areas")
-          .select("name")
-          .eq("name", cleanAreaName)
-          .limit(1);
-        if (error) throw error;
-        return !!(data && data.length > 0);
-      }
-
-      async function addTask(areaName, cycle) {
-        const clean = normName(areaName);
-        if (!clean) return toast("구역 이름이 비어있습니다.", true);
-        if (busy) return;
-        setBusy(true);
-        setSyncState("저장 중...");
-        try {
-          // 존재 확인 (FK 에러를 사용자 친화 메시지로 바꿈)
-          const exists = await ensureAreaExists(clean);
-          if (!exists) {
-            setSyncState("오류");
-            toast(`'${clean}' 구역이 DB에 없습니다. (공백/오타 가능) 새로고침 후 다시 시도하세요.`, true);
-            return;
-          }
-
-          const isoNow = new Date().toISOString();
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .insert([{ area_name: clean, cycle, status: "X", status_changed_at: isoNow }]);
-
-          if (error) throw error;
-
-          setSyncState("정상");
-          toast(`'${clean}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
-          await loadAll();
-        } catch (e) {
-          setSyncState("오류");
-          toast("주기 항목 추가 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      async function deleteTask(areaName, cycle) {
-        const clean = normName(areaName);
-        if (busy) return;
-        setBusy(true);
-        setSyncState("저장 중...");
-        try {
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .delete()
-            .eq("area_name", clean)
-            .eq("cycle", cycle);
-          if (error) throw error;
-
-          setSyncState("정상");
-          toast(`'${clean}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
-          await loadAll();
-        } catch (e) {
-          setSyncState("오류");
-          toast("주기 항목 삭제 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
-      }
-
-      async function setStatus(areaName, cycle, status) {
-        const clean = normName(areaName);
-        if (busy) return;
-        setBusy(true);
-        setSyncState("저장 중...");
-        try {
-          const isoNow = new Date().toISOString();
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .update({ status, status_changed_at: isoNow })
-            .eq("area_name", clean)
-            .eq("cycle", cycle);
-          if (error) throw error;
-
-          setSyncState("정상");
-          await loadAll();
-        } catch (e) {
-          setSyncState("오류");
-          toast("상태 변경 실패: " + (e?.message ?? String(e)), true);
-        } finally {
-          setBusy(false);
-        }
       }
 
       // =========================
@@ -795,17 +646,15 @@
           const addBtn = document.createElement("button");
           addBtn.className = "btn primary";
           addBtn.textContent = "주기 항목 추가";
-          addBtn.disabled = busy;
-          addBtn.addEventListener("click", () => addTask(areaName, addSel.value));
+          addBtn.addEventListener("click", () => addTask(areaName, addSel.value, addBtn));
 
           const delAreaBtn = document.createElement("button");
           delAreaBtn.className = "btn danger";
           delAreaBtn.textContent = "구역 삭제";
-          delAreaBtn.disabled = busy;
           delAreaBtn.addEventListener("click", () => {
             const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
             if (!ok) return;
-            deleteArea(areaName);
+            deleteArea(areaName, delAreaBtn);
           });
 
           right.appendChild(addSel);
@@ -883,23 +732,22 @@
             const oBtn = document.createElement("button");
             oBtn.className = "btn ox ox-o";
             oBtn.textContent = "O";
-            oBtn.disabled = busy || (t.status === "O");
-            oBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "O"));
+            oBtn.disabled = (t.status === "O");
+            oBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "O", oBtn));
 
             const xBtn = document.createElement("button");
             xBtn.className = "btn ox ox-x";
             xBtn.textContent = "X";
-            xBtn.disabled = busy || (t.status === "X");
-            xBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "X"));
+            xBtn.disabled = (t.status === "X");
+            xBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "X", xBtn));
 
             const delTaskBtn = document.createElement("button");
             delTaskBtn.className = "btn danger";
             delTaskBtn.textContent = "항목 삭제";
-            delTaskBtn.disabled = busy;
             delTaskBtn.addEventListener("click", () => {
               const ok = confirm(`'${areaName}' ${cycleLabel(t.cycle)} 항목을 삭제할까요?`);
               if (!ok) return;
-              deleteTask(areaName, t.cycle);
+              deleteTask(areaName, t.cycle, delTaskBtn);
             });
 
             actWrap.appendChild(oBtn);
@@ -919,6 +767,7 @@
         updateSummary();
       }
 
+      // countdown only
       function tickCountdownOnly() {
         const now = new Date();
         const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
@@ -929,41 +778,198 @@
         }
       }
 
+      // =========================
+      // Load: (중요) UI 잠그지 않는 비동기 갱신
+      // =========================
+      let loadSeq = 0;
       async function loadAll() {
+        const seq = ++loadSeq;
+        setSyncState("불러오는 중...");
         try {
-          setSyncState("불러오는 중...");
           await fetchAreas();
           await fetchTasks();
+          // 가장 최신 호출만 반영
+          if (seq !== loadSeq) return;
           setSyncState("정상");
           render();
         } catch (e) {
+          if (seq !== loadSeq) return;
           setSyncState("오류");
           toast("데이터 로드 실패: " + (e?.message ?? String(e)), true);
         }
       }
+      function loadAllAsync() { Promise.resolve().then(loadAll); }
 
+      // =========================
+      // Mutations: 버튼 단위 잠금
+      // =========================
+      async function addArea(name, btn) {
+        const clean = normName(name);
+        if (!clean) return toast("구역 이름을 입력하세요.", true);
+
+        await withButtonLock(btn, async () => {
+          setSyncState("저장 중...");
+
+          const { error } = await supa.from("cleaning_areas").insert([{ name: clean }]);
+          if (error) {
+            setSyncState("오류");
+            toast("구역 추가 실패: " + error.message, true);
+            return;
+          }
+
+          setSyncState("정상");
+          toast(`'${clean}' 구역이 추가되었습니다.`);
+          loadAllAsync();
+        });
+      }
+
+      async function deleteArea(name, btn) {
+        const clean = normName(name);
+        await withButtonLock(btn, async () => {
+          setSyncState("저장 중...");
+
+          const { error } = await supa.from("cleaning_areas").delete().eq("name", clean);
+          if (error) {
+            setSyncState("오류");
+            toast("구역 삭제 실패: " + error.message, true);
+            return;
+          }
+
+          setSyncState("정상");
+          toast(`'${clean}' 구역이 삭제되었습니다.`);
+          loadAllAsync();
+        }, 500);
+      }
+
+      async function addTask(areaName, cycle, btn) {
+        const clean = normName(areaName);
+        if (!clean) return toast("구역 이름이 비어있습니다.", true);
+
+        await withButtonLock(btn, async () => {
+          setSyncState("저장 중...");
+
+          const isoNow = new Date().toISOString();
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .insert([{ area_name: clean, cycle, status: "X", status_changed_at: isoNow }]);
+
+          if (error) {
+            setSyncState("오류");
+            toast("주기 항목 추가 실패: " + error.message, true);
+            return;
+          }
+
+          setSyncState("정상");
+          toast(`'${clean}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
+          loadAllAsync();
+        });
+      }
+
+      async function deleteTask(areaName, cycle, btn) {
+        const clean = normName(areaName);
+        await withButtonLock(btn, async () => {
+          setSyncState("저장 중...");
+
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .delete()
+            .eq("area_name", clean)
+            .eq("cycle", cycle);
+
+          if (error) {
+            setSyncState("오류");
+            toast("주기 항목 삭제 실패: " + error.message, true);
+            return;
+          }
+
+          setSyncState("정상");
+          toast(`'${clean}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
+          loadAllAsync();
+        }, 500);
+      }
+
+      async function setStatus(areaName, cycle, status, btn) {
+        const clean = normName(areaName);
+
+        await withButtonLock(btn, async () => {
+          setSyncState("저장 중...");
+
+          const isoNow = new Date().toISOString();
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .update({ status, status_changed_at: isoNow })
+            .eq("area_name", clean)
+            .eq("cycle", cycle);
+
+          if (error) {
+            setSyncState("오류");
+            toast("상태 변경 실패: " + error.message, true);
+            return;
+          }
+
+          setSyncState("정상");
+          loadAllAsync();
+        }, 250);
+      }
+
+      // =========================
+      // RPC: reset catch-up (버튼만 잠금, 화면 전체 잠금 없음)
+      // =========================
+      async function runResetCatchUpOnce(btn) {
+        await withButtonLock(btn, async () => {
+          setResetState("체크 중...");
+
+          const { data, error } = await supa.rpc("reset_due_tasks_kst");
+          if (error) {
+            setResetState("오류");
+            toast("리셋 체크 실패: " + error.message, true);
+            return;
+          }
+
+          const affected = Number(data || 0);
+          setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
+
+          // 로그/화면 갱신은 비동기
+          fetchLastResetLog().catch(() => {});
+          if (affected > 0) loadAllAsync();
+        }, 600);
+      }
+
+      // =========================
+      // Boot
+      // =========================
       function handleAddArea() {
         const name = normName(areaInput.value || "");
         if (!name) return toast("구역 이름을 입력하세요.", true);
         areaInput.value = "";
-        addArea(name);
+        addArea(name, addAreaBtn);
       }
 
       addAreaBtn.addEventListener("click", handleAddArea);
       areaInput.addEventListener("keydown", (e) => { if (e.key === "Enter") handleAddArea(); });
 
-      resetCatchUpBtn.addEventListener("click", () => runResetCatchUpOnce());
+      resetCatchUpBtn.addEventListener("click", () => runResetCatchUpOnce(resetCatchUpBtn));
 
       async function boot() {
         tickNow();
         setInterval(tickNow, 1000);
 
-        // 접속 시 1회 캐치업
-        await runResetCatchUpOnce();
+        // 접속 시 1회 캐치업 (버튼 잠금 없이 내부 실행)
+        // 사용자가 바로 눌러도 되도록 resetCatchUpBtn은 잠그지 않음
+        (async () => {
+          setResetState("체크 중...");
+          try {
+            const { data, error } = await supa.rpc("reset_due_tasks_kst");
+            if (error) throw error;
+            const affected = Number(data || 0);
+            setResetState(affected > 0 ? `리셋 ${affected}건` : "정상");
+          } catch (e) {
+            setResetState("오류");
+          }
+        })();
 
-        await loadAll();
-        await fetchLastResetLog();
-
+        loadAllAsync();
+        fetchLastResetLog().catch(() => {});
         setInterval(tickCountdownOnly, 1000);
       }
 
