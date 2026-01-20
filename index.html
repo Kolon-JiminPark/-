@@ -35,7 +35,6 @@
     }
 
     *{ box-sizing: border-box; }
-    html,body{ height:100%; }
     body{
       margin:0;
       background:var(--bg);
@@ -45,7 +44,6 @@
     }
 
     .wrap{ max-width:1180px; margin:28px auto; padding:0 16px; }
-
     .card{
       background:var(--card);
       border:1px solid var(--line);
@@ -92,7 +90,6 @@
     }
     .toast.err{ color:#b61f1f; }
 
-    /* Controls */
     .controls{
       padding:14px 18px;
       display:flex;
@@ -102,7 +99,6 @@
       border-bottom:1px solid var(--line);
       background:#fff;
     }
-
     .controls .grow{ flex:1; min-width: 240px; }
 
     input[type="text"]{
@@ -138,7 +134,7 @@
       justify-content:center;
       gap:8px;
       white-space:nowrap;
-      transition: transform .04s ease, background .15s ease, border-color .15s ease;
+      transition: transform .04s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
     }
     .btn:active{ transform: translateY(1px); }
     .btn:disabled{ opacity:.55; cursor:not-allowed; }
@@ -157,19 +153,11 @@
     }
     .btn.danger:hover{ border-color: rgba(224,87,87,.85); background: rgba(224,87,87,.06); }
 
-    .btn.ghost{
-      background:#fff;
-      border-color:#d5d9e0;
-      color:#344054;
-    }
-    .btn.ghost:hover{ background:#f7f8fa; }
-
-    /* Table */
     .content{ padding: 14px 18px 18px 18px; }
     .table-wrap{
       border:1px solid var(--line);
       border-radius: var(--radius2);
-      overflow:auto; /* mobile horizontal scroll */
+      overflow:auto;
       background:#fff;
     }
     table{ width:100%; border-collapse:separate; border-spacing:0; min-width: 860px; }
@@ -191,14 +179,12 @@
     }
     tbody tr:last-child td{ border-bottom:none; }
 
-    /* Col widths: balance so actions don't drift */
     .col-name{ width: 34%; }
     .col-status{ width: 10%; }
     .col-countdown{ width: 16%; }
     .col-changed{ width: 20%; }
     .col-actions{ width: 20%; }
 
-    /* Status badge */
     .badge{
       display:inline-flex;
       align-items:center;
@@ -215,7 +201,6 @@
     .time-cell .small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
     .countdown-cell{ font-size:12px; font-weight:900; color:var(--primary); white-space:nowrap; }
 
-    /* Area row */
     tr.area-row td{
       background:#fbfcfe;
       border-bottom:1px solid var(--line);
@@ -229,7 +214,6 @@
       gap:12px;
       flex-wrap:wrap;
     }
-
     .area-left{
       display:flex;
       align-items:center;
@@ -240,7 +224,6 @@
       font-weight:950;
       letter-spacing:-.2px;
     }
-
     .area-right{
       display:flex;
       align-items:center;
@@ -248,13 +231,8 @@
       flex-wrap:wrap;
     }
 
-    /* Task row indent */
     tr.task-row td:first-child{ padding-left: 28px; }
-    .inline{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-    }
+    .inline{ display:inline-flex; align-items:center; gap:8px; }
     .chip{
       font-size:12px;
       padding:6px 10px;
@@ -268,7 +246,6 @@
     .cycle-monthly{ border-color: rgba(45,179,107,.35); }
     .cycle-quarterly{ border-color: rgba(224,87,87,.35); }
 
-    /* Actions: keep compact, right aligned */
     .row-actions{
       display:flex;
       justify-content:flex-end;
@@ -375,8 +352,8 @@
       const SUPABASE_URL = "https://lojyvnojinrsxefzrdle.supabase.co";
       const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
 
-      // 화면 버전 표기(수정할 때마다 바꿔두면 팀원 버전 확인 쉬움)
-      const BUILD_VERSION = "2026-01-19.v2.ui-polish";
+      // 화면 버전 표기
+      const BUILD_VERSION = "2026-01-19.v2.ui-polish+fk-fix";
 
       const buildInfoEl = document.getElementById("buildInfo");
       buildInfoEl.textContent = "버전: " + BUILD_VERSION;
@@ -402,6 +379,22 @@
       const addAreaBtn = document.getElementById("addAreaBtn");
       const resetCatchUpBtn = document.getElementById("resetCatchUpBtn");
 
+      // ======= 중요: 문자열 정규화 (FK 불일치 방지) =======
+      // - 앞/뒤 공백 제거
+      // - 연속 공백 1개로
+      // - NBSP(특수 공백) 제거/치환
+      // - 유니코드 정규화(NFKC)로 비슷한 문자 통일
+      function normName(s) {
+        let v = (s ?? "");
+        v = String(v);
+        v = v.replace(/\u00A0/g, " ");     // NBSP -> space
+        v = v.replace(/\u2009/g, " ");     // thin space -> space
+        v = v.replace(/\u2002|\u2003/g, " "); // en/em space -> space
+        try { v = v.normalize("NFKC"); } catch (_) {}
+        v = v.trim().replace(/\s+/g, " ");
+        return v;
+      }
+
       // Toast
       let toastTimer = null;
       function toast(msg, isError = false) {
@@ -413,6 +406,16 @@
       }
       function setSyncState(text) { syncStateEl.textContent = "동기화: " + text; }
       function setResetState(text) { resetStateEl.textContent = "자동리셋: " + text; }
+
+      // Global busy lock (중복 클릭/타이밍 이슈 방지)
+      let busy = false;
+      function setBusy(v) {
+        busy = v;
+        addAreaBtn.disabled = v;
+        resetCatchUpBtn.disabled = v;
+        areaInput.disabled = v;
+        // 테이블 내 버튼들도 함께 잠그려면 렌더에서 busy 반영
+      }
 
       // KST formatters
       const fmtNowKst = new Intl.DateTimeFormat("ko-KR", {
@@ -469,19 +472,16 @@
         const dow = dowMap[p.weekday] ?? 0;
 
         if (cycle === "weekly") {
-          // 다음 월요일 00:00 KST
-          const daysToNextMon = (8 - dow) % 7 || 7;
+          const daysToNextMon = (8 - dow) % 7 || 7; // 다음 월요일
           const baseUtc = kstToUtcMs(p.y, p.m, p.d, 0, 0, 0);
           return baseUtc + daysToNextMon * 86400000;
         }
         if (cycle === "monthly") {
-          // 다음 달 1일 00:00 KST
           let ny = p.y;
           let nm = p.m + 1;
           if (nm === 13) { nm = 1; ny += 1; }
           return kstToUtcMs(ny, nm, 1, 0, 0, 0);
         }
-        // quarterly
         const qStartMonth = p.m <= 3 ? 1 : p.m <= 6 ? 4 : p.m <= 9 ? 7 : 10;
         let nextQMonth = qStartMonth + 3;
         let ny = p.y;
@@ -508,10 +508,9 @@
       }
 
       // ===== Data =====
-      let areas = []; // ["준비실","창고"...]
-      let tasks = []; // [{area_name, cycle, status, status_changed_at}]
+      let areas = [];
+      let tasks = [];
 
-      // Sorting
       function cycleRank(c) {
         if (c === "weekly") return 0;
         if (c === "monthly") return 1;
@@ -533,7 +532,9 @@
           .select("name")
           .order("name", { ascending: true });
         if (error) throw error;
-        areas = (data || []).map(r => r.name);
+
+        // DB에서 온 값도 혹시 몰라 정규화된 형태로만 사용(표시도 동일하게)
+        areas = (data || []).map(r => normName(r.name));
       }
 
       async function fetchTasks() {
@@ -543,7 +544,10 @@
           .order("area_name", { ascending: true });
         if (error) throw error;
 
-        tasks = (data || []).sort((a, b) => {
+        tasks = (data || []).map(t => ({
+          ...t,
+          area_name: normName(t.area_name)
+        })).sort((a, b) => {
           const na = a.area_name.localeCompare(b.area_name, "ko");
           if (na !== 0) return na;
           return cycleRank(a.cycle) - cycleRank(b.cycle);
@@ -569,18 +573,24 @@
       // RPC: Reset catch-up
       // =========================
       async function runResetCatchUpOnce() {
+        if (busy) return;
+        setBusy(true);
         setResetState("체크 중...");
-        const { data, error } = await supa.rpc("reset_due_tasks_kst");
-        if (error) {
+        try {
+          const { data, error } = await supa.rpc("reset_due_tasks_kst");
+          if (error) throw error;
+
+          const affected = Number(data || 0);
+          setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
+          await fetchLastResetLog();
+          if (affected > 0) {
+            await loadAll();
+          }
+        } catch (e) {
           setResetState("오류");
-          toast("리셋 체크 실패: " + error.message, true);
-          return;
-        }
-        const affected = Number(data || 0);
-        setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
-        await fetchLastResetLog();
-        if (affected > 0) {
-          await loadAll();
+          toast("리셋 체크 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
         }
       }
 
@@ -588,59 +598,138 @@
       // Mutations
       // =========================
       async function addArea(name) {
+        const clean = normName(name);
+        if (!clean) return toast("구역 이름을 입력하세요.", true);
+        if (busy) return;
+        setBusy(true);
         setSyncState("저장 중...");
-        const { error } = await supa.from("cleaning_areas").insert([{ name }]);
-        if (error) { setSyncState("오류"); toast("구역 추가 실패: " + error.message, true); return; }
-        setSyncState("정상");
-        toast(`'${name}' 구역이 추가되었습니다.`);
-        await loadAll();
+        try {
+          const { error } = await supa.from("cleaning_areas").insert([{ name: clean }]);
+          if (error) throw error;
+
+          setSyncState("정상");
+          toast(`'${clean}' 구역이 추가되었습니다.`);
+          await loadAll();
+        } catch (e) {
+          setSyncState("오류");
+          toast("구역 추가 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
+        }
       }
 
       async function deleteArea(name) {
+        const clean = normName(name);
+        if (busy) return;
+        setBusy(true);
         setSyncState("저장 중...");
-        const { error } = await supa.from("cleaning_areas").delete().eq("name", name);
-        if (error) { setSyncState("오류"); toast("구역 삭제 실패: " + error.message, true); return; }
-        setSyncState("정상");
-        toast(`'${name}' 구역이 삭제되었습니다.`);
-        await loadAll();
+        try {
+          const { error } = await supa.from("cleaning_areas").delete().eq("name", clean);
+          if (error) throw error;
+
+          setSyncState("정상");
+          toast(`'${clean}' 구역이 삭제되었습니다.`);
+          await loadAll();
+        } catch (e) {
+          setSyncState("오류");
+          toast("구역 삭제 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      // FK 에러 방지를 위해:
+      // 1) name 정규화
+      // 2) tasks insert 전에 cleaning_areas에 실제 존재하는지 1회 확인(없으면 안내)
+      async function ensureAreaExists(cleanAreaName) {
+        const { data, error } = await supa
+          .from("cleaning_areas")
+          .select("name")
+          .eq("name", cleanAreaName)
+          .limit(1);
+        if (error) throw error;
+        return !!(data && data.length > 0);
       }
 
       async function addTask(areaName, cycle) {
+        const clean = normName(areaName);
+        if (!clean) return toast("구역 이름이 비어있습니다.", true);
+        if (busy) return;
+        setBusy(true);
         setSyncState("저장 중...");
-        const isoNow = new Date().toISOString();
-        const { error } = await supa
-          .from("cleaning_area_tasks")
-          .insert([{ area_name: areaName, cycle, status: "X", status_changed_at: isoNow }]);
-        if (error) { setSyncState("오류"); toast("주기 항목 추가 실패: " + error.message, true); return; }
-        setSyncState("정상");
-        toast(`'${areaName}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
-        await loadAll();
+        try {
+          // 존재 확인 (FK 에러를 사용자 친화 메시지로 바꿈)
+          const exists = await ensureAreaExists(clean);
+          if (!exists) {
+            setSyncState("오류");
+            toast(`'${clean}' 구역이 DB에 없습니다. (공백/오타 가능) 새로고침 후 다시 시도하세요.`, true);
+            return;
+          }
+
+          const isoNow = new Date().toISOString();
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .insert([{ area_name: clean, cycle, status: "X", status_changed_at: isoNow }]);
+
+          if (error) throw error;
+
+          setSyncState("정상");
+          toast(`'${clean}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
+          await loadAll();
+        } catch (e) {
+          setSyncState("오류");
+          toast("주기 항목 추가 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
+        }
       }
 
       async function deleteTask(areaName, cycle) {
+        const clean = normName(areaName);
+        if (busy) return;
+        setBusy(true);
         setSyncState("저장 중...");
-        const { error } = await supa
-          .from("cleaning_area_tasks")
-          .delete()
-          .eq("area_name", areaName)
-          .eq("cycle", cycle);
-        if (error) { setSyncState("오류"); toast("주기 항목 삭제 실패: " + error.message, true); return; }
-        setSyncState("정상");
-        toast(`'${areaName}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
-        await loadAll();
+        try {
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .delete()
+            .eq("area_name", clean)
+            .eq("cycle", cycle);
+          if (error) throw error;
+
+          setSyncState("정상");
+          toast(`'${clean}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
+          await loadAll();
+        } catch (e) {
+          setSyncState("오류");
+          toast("주기 항목 삭제 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
+        }
       }
 
       async function setStatus(areaName, cycle, status) {
+        const clean = normName(areaName);
+        if (busy) return;
+        setBusy(true);
         setSyncState("저장 중...");
-        const isoNow = new Date().toISOString();
-        const { error } = await supa
-          .from("cleaning_area_tasks")
-          .update({ status, status_changed_at: isoNow })
-          .eq("area_name", areaName)
-          .eq("cycle", cycle);
-        if (error) { setSyncState("오류"); toast("상태 변경 실패: " + error.message, true); return; }
-        setSyncState("정상");
-        await loadAll();
+        try {
+          const isoNow = new Date().toISOString();
+          const { error } = await supa
+            .from("cleaning_area_tasks")
+            .update({ status, status_changed_at: isoNow })
+            .eq("area_name", clean)
+            .eq("cycle", cycle);
+          if (error) throw error;
+
+          setSyncState("정상");
+          await loadAll();
+        } catch (e) {
+          setSyncState("오류");
+          toast("상태 변경 실패: " + (e?.message ?? String(e)), true);
+        } finally {
+          setBusy(false);
+        }
       }
 
       // =========================
@@ -691,7 +780,6 @@
           const title = document.createElement("span");
           title.className = "area-title";
           title.textContent = areaName;
-
           left.appendChild(title);
 
           const right = document.createElement("div");
@@ -707,11 +795,13 @@
           const addBtn = document.createElement("button");
           addBtn.className = "btn primary";
           addBtn.textContent = "주기 항목 추가";
+          addBtn.disabled = busy;
           addBtn.addEventListener("click", () => addTask(areaName, addSel.value));
 
           const delAreaBtn = document.createElement("button");
           delAreaBtn.className = "btn danger";
           delAreaBtn.textContent = "구역 삭제";
+          delAreaBtn.disabled = busy;
           delAreaBtn.addEventListener("click", () => {
             const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
             if (!ok) return;
@@ -729,7 +819,6 @@
           areaTr.appendChild(tdArea);
           tbody.appendChild(areaTr);
 
-          // No tasks row
           if (areaTasks.length === 0) {
             const tr = document.createElement("tr");
             tr.className = "task-row";
@@ -743,12 +832,10 @@
             continue;
           }
 
-          // Task rows
           for (const t of areaTasks) {
             const tr = document.createElement("tr");
             tr.className = "task-row";
 
-            // name/cycle
             const tdName = document.createElement("td");
             const nameWrap = document.createElement("div");
             nameWrap.className = "inline";
@@ -764,7 +851,6 @@
             nameWrap.appendChild(cycleChip);
             tdName.appendChild(nameWrap);
 
-            // status
             const tdStatus = document.createElement("td");
             const badge = document.createElement("span");
             badge.className = "badge " + (t.status === "O" ? "o" : "x");
@@ -776,14 +862,12 @@
             badge.appendChild(st);
             tdStatus.appendChild(badge);
 
-            // countdown
             const tdCd = document.createElement("td");
             tdCd.className = "countdown-cell";
             tdCd.dataset.cycle = t.cycle;
             const nextUtc = nextResetUtcMsByCycle(t.cycle, now);
             tdCd.textContent = formatCountdown(nextUtc - now.getTime());
 
-            // changed time
             const tdChanged = document.createElement("td");
             tdChanged.className = "time-cell";
             tdChanged.textContent = kstText(t.status_changed_at);
@@ -792,7 +876,6 @@
             sub.textContent = "KST 기준";
             tdChanged.appendChild(sub);
 
-            // actions
             const tdAct = document.createElement("td");
             const actWrap = document.createElement("div");
             actWrap.className = "row-actions";
@@ -800,18 +883,19 @@
             const oBtn = document.createElement("button");
             oBtn.className = "btn ox ox-o";
             oBtn.textContent = "O";
-            oBtn.disabled = (t.status === "O");
+            oBtn.disabled = busy || (t.status === "O");
             oBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "O"));
 
             const xBtn = document.createElement("button");
             xBtn.className = "btn ox ox-x";
             xBtn.textContent = "X";
-            xBtn.disabled = (t.status === "X");
+            xBtn.disabled = busy || (t.status === "X");
             xBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "X"));
 
             const delTaskBtn = document.createElement("button");
             delTaskBtn.className = "btn danger";
             delTaskBtn.textContent = "항목 삭제";
+            delTaskBtn.disabled = busy;
             delTaskBtn.addEventListener("click", () => {
               const ok = confirm(`'${areaName}' ${cycleLabel(t.cycle)} 항목을 삭제할까요?`);
               if (!ok) return;
@@ -835,7 +919,6 @@
         updateSummary();
       }
 
-      // countdown only tick
       function tickCountdownOnly() {
         const now = new Date();
         const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
@@ -846,9 +929,6 @@
         }
       }
 
-      // =========================
-      // Load & Boot
-      // =========================
       async function loadAll() {
         try {
           setSyncState("불러오는 중...");
@@ -858,12 +938,12 @@
           render();
         } catch (e) {
           setSyncState("오류");
-          toast("데이터 로드 실패: " + (e && e.message ? e.message : String(e)), true);
+          toast("데이터 로드 실패: " + (e?.message ?? String(e)), true);
         }
       }
 
       function handleAddArea() {
-        const name = (areaInput.value || "").trim();
+        const name = normName(areaInput.value || "");
         if (!name) return toast("구역 이름을 입력하세요.", true);
         areaInput.value = "";
         addArea(name);
@@ -878,7 +958,7 @@
         tickNow();
         setInterval(tickNow, 1000);
 
-        // 접속 시 1회 캐치업(서버 cron이 정상이어도 문제 없음)
+        // 접속 시 1회 캐치업
         await runResetCatchUpOnce();
 
         await loadAll();
