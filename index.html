@@ -1,1087 +1,127 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>생산구역 청소 체크</title>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-  <style>
-    :root{
-      --bg:#f6f7f9;
-      --card:#fff;
-      --line:#e6e8ec;
-      --line2:#f0f2f5;
-      --text:#111;
-      --muted:#667085;
-
-      --primary:#2f6fed;
-      --primary-2:#2457bd;
-
-      --success:#2db36b;
-      --success-2:#229957;
-
-      --danger:#e05757;
-      --danger-2:#c94747;
-
-      --shadow: 0 2px 10px rgba(0,0,0,.05);
-      --radius: 14px;
-      --radius2: 12px;
-
-      --h-btn: 36px;
-      --h-input: 40px;
-      --fs: 14px;
-    }
-
-    *{ box-sizing: border-box; }
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      font-size: var(--fs);
-    }
-
-    .wrap{ max-width:1180px; margin:28px auto; padding:0 16px; }
-    .card{
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-    }
-
-    .header{ padding:18px 18px 10px 18px; border-bottom:1px solid var(--line); }
-    h1{ margin:0; font-size:18px; letter-spacing:-.2px; }
-    .now-time{ margin-top:10px; font-size:15px; font-weight:800; color:var(--primary); }
-
-    .meta-row{
-      margin-top:10px;
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-      align-items:center;
-    }
-    .pill{
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid #d5d9e0;
-      background:#fff;
-      color:#344054;
-      font-weight:750;
-      white-space:nowrap;
-    }
-
-    .sub{
-      margin-top:10px;
-      font-size:13px;
-      color:var(--muted);
-      line-height:1.7;
-    }
-
-    .toast{
-      margin-top:10px;
-      font-size:12px;
-      color:var(--success);
-      display:none;
-      font-weight:700;
-    }
-    .toast.err{ color:#b61f1f; }
-
-    .controls{
-      padding:14px 18px;
-      display:flex;
-      gap:10px;
-      align-items:center;
-      flex-wrap:wrap;
-      border-bottom:1px solid var(--line);
-      background:#fff;
-    }
-    .controls .grow{ flex:1; min-width: 240px; }
-
-    input[type="text"]{
-      width:100%;
-      height:var(--h-input);
-      padding:0 12px;
-      border:1px solid #d5d9e0;
-      border-radius:12px;
-      outline:none;
-      background:#fff;
-    }
-    input[type="text"]:focus{
-      border-color: rgba(47,111,237,.55);
-      box-shadow: 0 0 0 4px rgba(47,111,237,.12);
-    }
-
-    select{
-      height:var(--h-btn);
-      padding:0 10px;
-      border:1px solid #d5d9e0;
-      border-radius:12px;
-      background:#fff;
-      font-weight:650;
-    }
-
-    .btn{
-      height:var(--h-btn);
-      padding:0 12px;
-      border-radius:12px;
-      border:1px solid #d5d9e0;
-      background:#fff;
-      cursor:pointer;
-      font-weight:800;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      white-space:nowrap;
-      transition: transform .04s ease, background .15s ease, border-color .15s ease, opacity .15s ease;
-      user-select:none;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn:disabled{ opacity:.55; cursor:not-allowed; }
-
-    .btn.primary{
-      background:var(--primary);
-      border-color:var(--primary);
-      color:#fff;
-    }
-    .btn.primary:hover{ background:var(--primary-2); border-color:var(--primary-2); }
-
-    .btn.danger{
-      background:#fff;
-      border-color: rgba(224,87,87,.55);
-      color:#b61f1f;
-    }
-    .btn.danger:hover{ border-color: rgba(224,87,87,.85); background: rgba(224,87,87,.06); }
-
-    .content{ padding: 14px 18px 18px 18px; }
-    .table-wrap{
-      border:1px solid var(--line);
-      border-radius: var(--radius2);
-      overflow:auto;
-      background:#fff;
-    }
-    table{ width:100%; border-collapse:separate; border-spacing:0; min-width: 980px; }
-
-    thead th{
-      text-align:left;
-      font-size:12px;
-      color:#667085;
-      background:#fafbfc;
-      border-bottom:1px solid var(--line);
-      padding:10px 12px;
-      white-space:nowrap;
-    }
-
-    tbody td{
-      padding:12px;
-      border-bottom:1px solid var(--line2);
-      vertical-align:middle;
-    }
-    tbody tr:last-child td{ border-bottom:none; }
-
-    .badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      font-weight:900;
-      letter-spacing:.2px;
-    }
-    .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
-    .x .dot{ background:var(--danger); }
-    .o .dot{ background:var(--success); }
-
-    .muted{ color:var(--muted); font-size:12px; }
-    .time-cell{ font-size:12px; color:#344054; }
-    .time-cell .small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; }
-    .countdown-cell{ font-size:12px; font-weight:900; color:var(--primary); white-space:nowrap; }
-
-    /* ===== Grade Row (Top level) ===== */
-    tr.grade-row td{
-      background:#f2f5ff;
-      border-bottom:1px solid var(--line);
-      padding:10px 12px;
-    }
-    .grade-bar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-    .grade-title{
-      font-weight:950;
-      letter-spacing:-.2px;
-      display:flex;
-      align-items:center;
-      gap:10px;
-    }
-    .grade-count{
-      font-size:12px;
-      color:var(--muted);
-      font-weight:750;
-    }
-    .toggle-btn{
-      height:30px;
-      padding:0 10px;
-      border-radius:999px;
-      border:1px solid #d5d9e0;
-      background:#fff;
-      cursor:pointer;
-      font-weight:850;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      user-select:none;
-      white-space:nowrap;
-    }
-    .toggle-btn:disabled{ opacity:.55; cursor:not-allowed; }
-
-    /* ===== Area row ===== */
-    tr.area-row td{
-      background:#fbfcfe;
-      border-bottom:1px solid var(--line);
-      padding:10px 12px;
-    }
-    .area-bar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-    .area-left{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width: 240px;
-    }
-    .area-title{ font-weight:950; letter-spacing:-.2px; }
-
-    .area-right{
-      display:flex;
-      align-items:center;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    tr.task-row td:first-child{ padding-left: 28px; }
-    .inline{ display:inline-flex; align-items:center; gap:8px; }
-    .chip{
-      font-size:12px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid #d5d9e0;
-      background:#fff;
-      font-weight:850;
-      white-space:nowrap;
-    }
-    .cycle-weekly{ border-color: rgba(47,111,237,.35); }
-    .cycle-monthly{ border-color: rgba(45,179,107,.35); }
-    .cycle-quarterly{ border-color: rgba(224,87,87,.35); }
-
-    .row-actions{
-      display:flex;
-      justify-content:flex-end;
-      align-items:center;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-
-    .btn.ox{
-      width: 44px;
-      padding:0;
-      font-weight:950;
-      letter-spacing:.3px;
-      border-color: transparent;
-      color:#fff;
-    }
-    .btn.ox-o{ background:var(--success); border-color:var(--success-2); }
-    .btn.ox-o:hover{ background:var(--success-2); }
-    .btn.ox-x{ background:var(--danger); border-color:var(--danger-2); }
-    .btn.ox-x:hover{ background:var(--danger-2); }
-
-    .footer{
-      padding: 12px 18px 16px 18px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      border-top:1px solid var(--line);
-      background:#fff;
-    }
-
-    @media (max-width: 980px){
-      .controls{ align-items:stretch; }
-      .controls .grow{ min-width: 100%; }
-      .btn{ width:100%; }
-      .footer{ flex-direction:column; align-items:flex-start; }
-      .row-actions{ justify-content:flex-start; }
-      .area-bar, .grade-bar{ justify-content:flex-start; }
-      table{ min-width: 860px; }
-    }
-  </style>
+<meta charset="utf-8" />
+<title>생산구역 청소 체크</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body{font-family:system-ui;margin:0;background:#f6f7f9}
+.wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+.card{background:#fff;border-radius:14px;border:1px solid #e6e8ec}
+h1{margin:0;font-size:18px}
+.header{padding:16px;border-bottom:1px solid #e6e8ec}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px;border-bottom:1px solid #eee;font-size:14px}
+.grade{background:#eef2ff;font-weight:900}
+.area{background:#fafbff;font-weight:800}
+.task{padding-left:32px}
+button{padding:6px 10px;border-radius:8px;border:1px solid #ccc;cursor:pointer}
+select{padding:6px;border-radius:8px}
+</style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="card">
-      <div class="header">
-        <h1>생산구역 청소 체크_V2</h1>
-        <div id="nowTime" class="now-time">현재 시각: -</div>
+<div class="wrap">
+<div class="card">
+<div class="header">
+<h1>생산구역 청소 체크</h1>
+</div>
 
-        <div class="meta-row">
-          <div class="pill" id="syncState">동기화: -</div>
-          <div class="pill" id="resetState">자동리셋: -</div>
-          <div class="pill" id="lastResetLog">마지막 초기화: -</div>
-          <div class="pill" id="buildInfo">버전: -</div>
-        </div>
+<table>
+<thead>
+<tr>
+<th>구성</th>
+<th>상태</th>
+<th>작업</th>
+</tr>
+</thead>
+<tbody id="tbody"></tbody>
+</table>
 
-        <div class="sub">
-          최상위는 <b>Grade</b>이며, 그 아래에 구역과 주기 항목이 표시됩니다.<br/>
-          Grade는 구역 등록/수정 시 설정하며, Grade 헤더는 접기/펼치기가 가능합니다.
-        </div>
+</div>
+</div>
 
-        <div id="toast" class="toast"></div>
-      </div>
+<script>
+const supa = supabase.createClient(
+  "https://lojyvnojinrsxefzrdle.supabase.co",
+  "YOUR_ANON_KEY"
+);
 
-      <div class="controls">
-        <div class="grow">
-          <input id="areaInput" type="text" placeholder="구역 추가 (예: 준비실)" />
-        </div>
+const GRADE_ORDER = ["B","C","CNC","UCA"];
+let areas=[], tasks=[];
 
-        <select id="gradeInput">
-          <option value="B">Grade B</option>
-          <option value="C">Grade C</option>
-          <option value="CNC">Grade CNC</option>
-          <option value="UCA">Grade UCA</option>
-        </select>
-
-        <button id="addAreaBtn" class="btn primary">구역 추가</button>
-        <button id="resetCatchUpBtn" class="btn danger">서버 리셋 캐치업(1회)</button>
-      </div>
-
-      <div class="content">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th style="width: 34%;">Grade / 구역 / 주기</th>
-                <th style="width: 10%;">상태</th>
-                <th style="width: 16%;">다음 리셋까지</th>
-                <th style="width: 20%;">상태 변경 시점</th>
-                <th style="width: 20%; text-align:right;">선택</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="footer">
-        <div class="muted">공유 저장소: Supabase</div>
-        <div class="muted" id="summaryLabel">항목 0개 (O: 0 / X: 0)</div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const SUPABASE_URL = "https://lojyvnojinrsxefzrdle.supabase.co";
-      const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxvanl2bm9qaW5yc3hlZnpyZGxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3ODQxNzQsImV4cCI6MjA4NDM2MDE3NH0.UEiP64KmASkhKP6ufxxWlSLUlCqhJjkL1TtDA2Ob1-0";
-
-      const BUILD_VERSION = "2026-01-21.v2.grade-group+collapse";
-
-      document.getElementById("buildInfo").textContent = "버전: " + BUILD_VERSION;
-
-      if (!SUPABASE_URL || SUPABASE_URL.includes("YOUR_SUPABASE_URL_HERE") ||
-          !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes("YOUR_SUPABASE_ANON_KEY_HERE")) {
-        alert("SUPABASE_URL / SUPABASE_ANON_KEY를 먼저 입력하세요. (Supabase Settings → API)");
-      }
-
-      const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-      // Elements
-      const toastEl = document.getElementById("toast");
-      const nowTimeEl = document.getElementById("nowTime");
-      const syncStateEl = document.getElementById("syncState");
-      const resetStateEl = document.getElementById("resetState");
-      const lastResetLogEl = document.getElementById("lastResetLog");
-
-      const tbody = document.getElementById("tbody");
-      const summaryLabel = document.getElementById("summaryLabel");
-
-      const areaInput = document.getElementById("areaInput");
-      const gradeInput = document.getElementById("gradeInput");
-      const addAreaBtn = document.getElementById("addAreaBtn");
-      const resetCatchUpBtn = document.getElementById("resetCatchUpBtn");
-
-      const ALLOWED_GRADES = ["B","C","CNC","UCA"];
-      const GRADE_ORDER = ["B","C","CNC","UCA"];
-
-      // ===== LocalStorage (grade collapse state) =====
-      const LS_KEY = "cleaning_grade_collapsed_v1";
-      function loadCollapsedMap() {
-        try {
-          const raw = localStorage.getItem(LS_KEY);
-          const obj = raw ? JSON.parse(raw) : {};
-          return (obj && typeof obj === "object") ? obj : {};
-        } catch (_) {
-          return {};
-        }
-      }
-      function saveCollapsedMap(map) {
-        try { localStorage.setItem(LS_KEY, JSON.stringify(map)); } catch (_) {}
-      }
-      let collapsedByGrade = loadCollapsedMap(); // {B:true,...}
-
-      // ===== normalize =====
-      function normName(s) {
-        let v = (s ?? "");
-        v = String(v);
-        v = v.replace(/\u00A0/g, " ");
-        v = v.replace(/\u2009/g, " ");
-        v = v.replace(/\u2002|\u2003/g, " ");
-        try { v = v.normalize("NFKC"); } catch (_) {}
-        v = v.trim().replace(/\s+/g, " ");
-        return v;
-      }
-      function normGrade(g) {
-        const v = String(g ?? "").trim().toUpperCase();
-        return ALLOWED_GRADES.includes(v) ? v : "B";
-      }
-
-      // Toast
-      let toastTimer = null;
-      function toast(msg, isError = false) {
-        toastEl.textContent = msg;
-        toastEl.className = "toast" + (isError ? " err" : "");
-        toastEl.style.display = "block";
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => { toastEl.style.display = "none"; }, 2300);
-      }
-      function setSyncState(text) { syncStateEl.textContent = "동기화: " + text; }
-      function setResetState(text) { resetStateEl.textContent = "자동리셋: " + text; }
-
-      // Button lock
-      async function withButtonLock(btn, fn, cooldownMs = 350) {
-        if (!btn || btn.disabled) return;
-        btn.disabled = true;
-        try {
-          await fn();
-        } finally {
-          window.setTimeout(() => { btn.disabled = false; }, cooldownMs);
-        }
-      }
-
-      // KST formatters
-      const fmtNowKst = new Intl.DateTimeFormat("ko-KR", {
-        timeZone: "Asia/Seoul",
-        year: "numeric", month: "2-digit", day: "2-digit",
-        weekday: "short",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false,
-      });
-
-      const fmtKstDateTime = new Intl.DateTimeFormat("ko-KR", {
-        timeZone: "Asia/Seoul",
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false,
-      });
-
-      function tickNow() {
-        nowTimeEl.textContent = "현재 시각: " + fmtNowKst.format(new Date());
-      }
-
-      // ===== Reset countdown helpers =====
-      function getKstParts(date = new Date()) {
-        const fmt = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Seoul",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          weekday: "short",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        });
-        const parts = fmt.formatToParts(date);
-        const map = {};
-        parts.forEach(p => { if (p.type !== "literal") map[p.type] = p.value; });
-        return { y: Number(map.year), m: Number(map.month), d: Number(map.day), weekday: map.weekday };
-      }
-      function kstToUtcMs(y, m, d, hh = 0, mm = 0, ss = 0) {
-        return Date.UTC(y, m - 1, d, hh - 9, mm, ss);
-      }
-      function nextResetUtcMsByCycle(cycle, now = new Date()) {
-        const p = getKstParts(now);
-        const dowMap = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-        const dow = dowMap[p.weekday] ?? 0;
-
-        if (cycle === "weekly") {
-          const daysToNextMon = (8 - dow) % 7 || 7;
-          const baseUtc = kstToUtcMs(p.y, p.m, p.d, 0, 0, 0);
-          return baseUtc + daysToNextMon * 86400000;
-        }
-        if (cycle === "monthly") {
-          let ny = p.y;
-          let nm = p.m + 1;
-          if (nm === 13) { nm = 1; ny += 1; }
-          return kstToUtcMs(ny, nm, 1, 0, 0, 0);
-        }
-        const qStartMonth = p.m <= 3 ? 1 : p.m <= 6 ? 4 : p.m <= 9 ? 7 : 10;
-        let nextQMonth = qStartMonth + 3;
-        let ny = p.y;
-        if (nextQMonth === 13) { nextQMonth = 1; ny += 1; }
-        return kstToUtcMs(ny, nextQMonth, 1, 0, 0, 0);
-      }
-      function formatCountdown(ms) {
-        const totalSec = Math.max(0, Math.floor(ms / 1000));
-        const days = Math.floor(totalSec / 86400);
-        const rem1 = totalSec % 86400;
-        const hh = String(Math.floor(rem1 / 3600)).padStart(2, "0");
-        const rem2 = rem1 % 3600;
-        const mm = String(Math.floor(rem2 / 60)).padStart(2, "0");
-        const ss = String(rem2 % 60).padStart(2, "0");
-        return days > 0 ? `${days}일 ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
-      }
-      function kstText(iso) {
-        if (!iso) return "—";
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return "—";
-        return fmtKstDateTime.format(d);
-      }
-
-      // ===== Data =====
-      let areas = []; // [{name, grade}]
-      let tasks = []; // [{area_name, cycle, status, status_changed_at}]
-
-      function cycleRank(c) { return c === "weekly" ? 0 : c === "monthly" ? 1 : 2; }
-      function cycleLabel(c) { return c === "weekly" ? "주간" : c === "monthly" ? "월간" : "분기"; }
-      function cycleChipClass(c) { return c === "weekly" ? "cycle-weekly" : c === "monthly" ? "cycle-monthly" : "cycle-quarterly"; }
-
-      // ===== Fetch =====
-      async function fetchAreas() {
-        const { data, error } = await supa
-          .from("cleaning_areas")
-          .select("name, grade")
-          .order("name", { ascending: true });
-        if (error) throw error;
-
-        areas = (data || []).map(r => ({
-          name: normName(r.name),
-          grade: normGrade(r.grade ?? "B"),
-        }));
-      }
-
-      async function fetchTasks() {
-        const { data, error } = await supa
-          .from("cleaning_area_tasks")
-          .select("area_name,cycle,status,status_changed_at")
-          .order("area_name", { ascending: true });
-        if (error) throw error;
-
-        tasks = (data || []).map(t => ({
-          ...t,
-          area_name: normName(t.area_name),
-        })).sort((a, b) => {
-          const na = a.area_name.localeCompare(b.area_name, "ko");
-          if (na !== 0) return na;
-          return cycleRank(a.cycle) - cycleRank(b.cycle);
-        });
-      }
-
-      async function fetchLastResetLog() {
-        const { data, error } = await supa
-          .from("cleaning_reset_logs")
-          .select("reset_at")
-          .order("reset_at", { ascending: false })
-          .limit(1);
-
-        if (error || !data || data.length === 0) {
-          lastResetLogEl.textContent = "마지막 초기화: -";
-          return;
-        }
-        const d = new Date(data[0].reset_at);
-        lastResetLogEl.textContent = "마지막 초기화: " + (isNaN(d.getTime()) ? "-" : fmtKstDateTime.format(d));
-      }
-
-      // ===== Load (non-blocking) =====
-      let loadSeq = 0;
-      async function loadAll() {
-        const seq = ++loadSeq;
-        setSyncState("불러오는 중...");
-        try {
-          await fetchAreas();
-          await fetchTasks();
-          if (seq !== loadSeq) return;
-          setSyncState("정상");
-          render();
-        } catch (e) {
-          if (seq !== loadSeq) return;
-          setSyncState("오류");
-          toast("데이터 로드 실패: " + (e?.message ?? String(e)), true);
-        }
-      }
-      function loadAllAsync() { Promise.resolve().then(loadAll); }
-
-      // ===== Mutations =====
-      async function addArea(name, grade, btn) {
-        const clean = normName(name);
-        const g = normGrade(grade);
-        if (!clean) return toast("구역 이름을 입력하세요.", true);
-
-        await withButtonLock(btn, async () => {
-          setSyncState("저장 중...");
-          const { error } = await supa.from("cleaning_areas").insert([{ name: clean, grade: g }]);
-          if (error) {
-            setSyncState("오류");
-            toast("구역 추가 실패: " + error.message, true);
-            return;
-          }
-          setSyncState("정상");
-          toast(`'${clean}' 구역이 추가되었습니다. (Grade: ${g})`);
-          loadAllAsync();
-        });
-      }
-
-async function updateAreaGrade(areaName, newGrade, selectEl) {
-  const clean = normName(areaName);
-  const g = normGrade(newGrade);
-
-  await withButtonLock(selectEl, async () => {
-    setSyncState("저장 중...");
-
-    const { error } = await supa
-      .from("cleaning_areas")
-      .update({ grade: g })
-      .eq("name", clean);
-
-    if (error) {
-      setSyncState("오류");
-      toast("Grade 변경 실패: " + error.message, true);
-      return;
-    }
-
-    // ✅ 여기서 즉시 프론트 상태 반영 (핵심)
-    const a = areas.find(x => x.name === clean);
-    if (a) a.grade = g;
-
-    setSyncState("정상");
-    toast(`'${clean}' Grade가 ${g}로 변경되었습니다.`);
-
-    // 👉 전체 reload는 뒤로 미루거나 생략 가능
-    render();
-  }, 200);
+async function loadAll(){
+  const a = await supa.from("cleaning_areas").select("name,grade");
+  const t = await supa.from("cleaning_area_tasks").select("*");
+  areas = a.data || [];
+  tasks = t.data || [];
+  render();
 }
 
-
-      async function deleteArea(name, btn) {
-        const clean = normName(name);
-        await withButtonLock(btn, async () => {
-          setSyncState("저장 중...");
-          const { error } = await supa.from("cleaning_areas").delete().eq("name", clean);
-          if (error) {
-            setSyncState("오류");
-            toast("구역 삭제 실패: " + error.message, true);
-            return;
-          }
-          setSyncState("정상");
-          toast(`'${clean}' 구역이 삭제되었습니다.`);
-          loadAllAsync();
-        }, 450);
-      }
-
-      async function addTask(areaName, cycle, btn) {
-        const clean = normName(areaName);
-        await withButtonLock(btn, async () => {
-          setSyncState("저장 중...");
-          const isoNow = new Date().toISOString();
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .insert([{ area_name: clean, cycle, status: "X", status_changed_at: isoNow }]);
-
-          if (error) {
-            setSyncState("오류");
-            toast("주기 항목 추가 실패: " + error.message, true);
-            return;
-          }
-          setSyncState("정상");
-          toast(`'${clean}'에 ${cycleLabel(cycle)} 항목이 추가되었습니다.`);
-          loadAllAsync();
-        });
-      }
-
-      async function deleteTask(areaName, cycle, btn) {
-        const clean = normName(areaName);
-        await withButtonLock(btn, async () => {
-          setSyncState("저장 중...");
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .delete()
-            .eq("area_name", clean)
-            .eq("cycle", cycle);
-
-          if (error) {
-            setSyncState("오류");
-            toast("주기 항목 삭제 실패: " + error.message, true);
-            return;
-          }
-          setSyncState("정상");
-          toast(`'${clean}' ${cycleLabel(cycle)} 항목이 삭제되었습니다.`);
-          loadAllAsync();
-        }, 450);
-      }
-
-      async function setStatus(areaName, cycle, status, btn) {
-        const clean = normName(areaName);
-        await withButtonLock(btn, async () => {
-          setSyncState("저장 중...");
-          const isoNow = new Date().toISOString();
-          const { error } = await supa
-            .from("cleaning_area_tasks")
-            .update({ status, status_changed_at: isoNow })
-            .eq("area_name", clean)
-            .eq("cycle", cycle);
-
-          if (error) {
-            setSyncState("오류");
-            toast("상태 변경 실패: " + error.message, true);
-            return;
-          }
-          setSyncState("정상");
-          loadAllAsync();
-        }, 220);
-      }
-
-      async function runResetCatchUpOnce(btn) {
-        await withButtonLock(btn, async () => {
-          setResetState("체크 중...");
-          const { data, error } = await supa.rpc("reset_due_tasks_kst");
-          if (error) {
-            setResetState("오류");
-            toast("리셋 체크 실패: " + error.message, true);
-            return;
-          }
-          const affected = Number(data || 0);
-          setResetState(affected > 0 ? `리셋 ${affected}건` : "변경 없음");
-          fetchLastResetLog().catch(() => {});
-          if (affected > 0) loadAllAsync();
-        }, 600);
-      }
-
-      // ===== Render =====
-      function updateSummary() {
-        const oCount = tasks.filter(t => t.status === "O").length;
-        const xCount = tasks.filter(t => t.status === "X").length;
-        summaryLabel.textContent = `항목 ${tasks.length}개 (O: ${oCount} / X: ${xCount})`;
-      }
-
-      function renderGradeRow(grade, areaCount, isCollapsed) {
-        const tr = document.createElement("tr");
-        tr.className = "grade-row";
-
-        const td = document.createElement("td");
-        td.colSpan = 5;
-
-        const bar = document.createElement("div");
-        bar.className = "grade-bar";
-
-        const left = document.createElement("div");
-        left.className = "grade-title";
-        left.textContent = `Grade ${grade}`;
-
-        const count = document.createElement("span");
-        count.className = "grade-count";
-        count.textContent = `구역 ${areaCount}개`;
-
-        const toggle = document.createElement("button");
-        toggle.className = "toggle-btn";
-        toggle.textContent = isCollapsed ? "펼치기 ▾" : "접기 ▴";
-        toggle.addEventListener("click", () => {
-          collapsedByGrade[grade] = !collapsedByGrade[grade];
-          saveCollapsedMap(collapsedByGrade);
-          render(); // 간단 재렌더
-        });
-
-        bar.appendChild(left);
-        bar.appendChild(count);
-        bar.appendChild(toggle);
-
-        td.appendChild(bar);
-        tr.appendChild(td);
-        return tr;
-      }
-
-      function render() {
-        tbody.innerHTML = "";
-
-        if (!areas.length) {
-          const tr = document.createElement("tr");
-          const td = document.createElement("td");
-          td.colSpan = 5;
-          td.className = "muted";
-          td.style.padding = "16px 12px";
-          td.textContent = "등록된 구역이 없습니다. 상단에서 구역을 추가하세요.";
-          tr.appendChild(td);
-          tbody.appendChild(tr);
-          updateSummary();
-          return;
-        }
-
-        // Grade -> areas grouping
-        const byGrade = {};
-        for (const a of areas) {
-          const g = normGrade(a.grade);
-          if (!byGrade[g]) byGrade[g] = [];
-          byGrade[g].push(a);
-        }
-        // grade 내 정렬 (구역명 오름차순)
-        for (const g of Object.keys(byGrade)) {
-          byGrade[g].sort((x, y) => x.name.localeCompare(y.name, "ko"));
-        }
-
-        const now = new Date();
-
-        for (const grade of GRADE_ORDER) {
-          const gradeAreas = byGrade[grade];
-          if (!gradeAreas || gradeAreas.length === 0) continue;
-
-          const isCollapsed = !!collapsedByGrade[grade];
-          tbody.appendChild(renderGradeRow(grade, gradeAreas.length, isCollapsed));
-
-          if (isCollapsed) continue;
-
-          for (const area of gradeAreas) {
-            const areaName = area.name;
-
-            const areaTasks = tasks
-              .filter(t => t.area_name === areaName)
-              .sort((a, b) => cycleRank(a.cycle) - cycleRank(b.cycle));
-
-            // Area row
-            const areaTr = document.createElement("tr");
-            areaTr.className = "area-row";
-
-            const tdArea = document.createElement("td");
-            tdArea.colSpan = 5;
-
-            const bar = document.createElement("div");
-            bar.className = "area-bar";
-
-            const left = document.createElement("div");
-            left.className = "area-left";
-
-            const title = document.createElement("span");
-            title.className = "area-title";
-            title.textContent = areaName;
-
-            left.appendChild(title);
-
-            const right = document.createElement("div");
-            right.className = "area-right";
-
-            const gradeSel = document.createElement("select");
-            gradeSel.innerHTML = `
-              <option value="B">Grade B</option>
-              <option value="C">Grade C</option>
-              <option value="CNC">Grade CNC</option>
-              <option value="UCA">Grade UCA</option>
-            `;
-            gradeSel.value = grade;
-            gradeSel.addEventListener("change", () => updateAreaGrade(areaName, gradeSel.value, gradeSel));
-
-            const addSel = document.createElement("select");
-            addSel.innerHTML = `
-              <option value="weekly">주간 추가</option>
-              <option value="monthly">월간 추가</option>
-              <option value="quarterly">분기 추가</option>
-            `;
-
-            const addBtn = document.createElement("button");
-            addBtn.className = "btn primary";
-            addBtn.textContent = "주기 항목 추가";
-            addBtn.addEventListener("click", () => addTask(areaName, addSel.value, addBtn));
-
-            const delAreaBtn = document.createElement("button");
-            delAreaBtn.className = "btn danger";
-            delAreaBtn.textContent = "구역 삭제";
-            delAreaBtn.addEventListener("click", () => {
-              const ok = confirm(`'${areaName}' 구역을 삭제할까요? (해당 구역의 주기 항목도 모두 삭제됩니다)`);
-              if (!ok) return;
-              deleteArea(areaName, delAreaBtn);
-            });
-
-            right.appendChild(gradeSel);
-            right.appendChild(addSel);
-            right.appendChild(addBtn);
-            right.appendChild(delAreaBtn);
-
-            bar.appendChild(left);
-            bar.appendChild(right);
-
-            tdArea.appendChild(bar);
-            areaTr.appendChild(tdArea);
-            tbody.appendChild(areaTr);
-
-            // no tasks row
-            if (areaTasks.length === 0) {
-              const tr = document.createElement("tr");
-              tr.className = "task-row";
-              const td = document.createElement("td");
-              td.colSpan = 5;
-              td.className = "muted";
-              td.style.padding = "12px";
-              td.textContent = "이 구역에는 아직 주기 항목이 없습니다. 위에서 주기 항목을 추가하세요.";
-              tr.appendChild(td);
-              tbody.appendChild(tr);
-              continue;
-            }
-
-            for (const t of areaTasks) {
-              const tr = document.createElement("tr");
-              tr.className = "task-row";
-
-              const tdName = document.createElement("td");
-              const nameWrap = document.createElement("div");
-              nameWrap.className = "inline";
-
-              const arrow = document.createElement("span");
-              arrow.textContent = "└";
-
-              const cycleChip = document.createElement("span");
-              cycleChip.className = "chip " + cycleChipClass(t.cycle);
-              cycleChip.textContent = cycleLabel(t.cycle);
-
-              nameWrap.appendChild(arrow);
-              nameWrap.appendChild(cycleChip);
-              tdName.appendChild(nameWrap);
-
-              const tdStatus = document.createElement("td");
-              const badge = document.createElement("span");
-              badge.className = "badge " + (t.status === "O" ? "o" : "x");
-              const dot = document.createElement("span");
-              dot.className = "dot";
-              const st = document.createElement("span");
-              st.textContent = t.status;
-              badge.appendChild(dot);
-              badge.appendChild(st);
-              tdStatus.appendChild(badge);
-
-              const tdCd = document.createElement("td");
-              tdCd.className = "countdown-cell";
-              tdCd.dataset.cycle = t.cycle;
-              const nextUtc = nextResetUtcMsByCycle(t.cycle, now);
-              tdCd.textContent = formatCountdown(nextUtc - now.getTime());
-
-              const tdChanged = document.createElement("td");
-              tdChanged.className = "time-cell";
-              tdChanged.textContent = kstText(t.status_changed_at);
-              const sub = document.createElement("span");
-              sub.className = "small";
-              sub.textContent = "KST 기준";
-              tdChanged.appendChild(sub);
-
-              const tdAct = document.createElement("td");
-              const actWrap = document.createElement("div");
-              actWrap.className = "row-actions";
-
-              const oBtn = document.createElement("button");
-              oBtn.className = "btn ox ox-o";
-              oBtn.textContent = "O";
-              oBtn.disabled = (t.status === "O");
-              oBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "O", oBtn));
-
-              const xBtn = document.createElement("button");
-              xBtn.className = "btn ox ox-x";
-              xBtn.textContent = "X";
-              xBtn.disabled = (t.status === "X");
-              xBtn.addEventListener("click", () => setStatus(t.area_name, t.cycle, "X", xBtn));
-
-              const delTaskBtn = document.createElement("button");
-              delTaskBtn.className = "btn danger";
-              delTaskBtn.textContent = "항목 삭제";
-              delTaskBtn.addEventListener("click", () => {
-                const ok = confirm(`'${areaName}' ${cycleLabel(t.cycle)} 항목을 삭제할까요?`);
-                if (!ok) return;
-                deleteTask(areaName, t.cycle, delTaskBtn);
-              });
-
-              actWrap.appendChild(oBtn);
-              actWrap.appendChild(xBtn);
-              actWrap.appendChild(delTaskBtn);
-              tdAct.appendChild(actWrap);
-
-              tr.appendChild(tdName);
-              tr.appendChild(tdStatus);
-              tr.appendChild(tdCd);
-              tr.appendChild(tdChanged);
-              tr.appendChild(tdAct);
-              tbody.appendChild(tr);
-            }
-          }
-        }
-
-        updateSummary();
-      }
-
-      function tickCountdownOnly() {
-        const now = new Date();
-        const cells = document.querySelectorAll('td.countdown-cell[data-cycle]');
-        for (const cell of cells) {
-          const cycle = cell.dataset.cycle;
-          const nextUtc = nextResetUtcMsByCycle(cycle, now);
-          cell.textContent = formatCountdown(nextUtc - now.getTime());
-        }
-      }
-
-      // ===== Events =====
-      function handleAddArea() {
-        const name = normName(areaInput.value || "");
-        const grade = normGrade(gradeInput.value);
-        if (!name) return toast("구역 이름을 입력하세요.", true);
-        areaInput.value = "";
-        addArea(name, grade, addAreaBtn);
-      }
-
-      addAreaBtn.addEventListener("click", handleAddArea);
-      areaInput.addEventListener("keydown", (e) => { if (e.key === "Enter") handleAddArea(); });
-
-      resetCatchUpBtn.addEventListener("click", () => runResetCatchUpOnce(resetCatchUpBtn));
-
-      // ===== Boot =====
-      async function boot() {
-        tickNow();
-        setInterval(tickNow, 1000);
-
-        // 접속 시 1회 캐치업(백그라운드)
-        (async () => {
-          setResetState("체크 중...");
-          try {
-            const { data, error } = await supa.rpc("reset_due_tasks_kst");
-            if (error) throw error;
-            const affected = Number(data || 0);
-            setResetState(affected > 0 ? `리셋 ${affected}건` : "정상");
-          } catch (_) {
-            setResetState("오류");
-          }
-        })();
-
-        loadAllAsync();
-        fetchLastResetLog().catch(() => {});
-        setInterval(tickCountdownOnly, 1000);
-      }
-
-      boot();
-    })();
-  </script>
+function render(){
+  const tb = document.getElementById("tbody");
+  tb.innerHTML="";
+
+  const byGrade = {};
+  areas.forEach(a=>{
+    byGrade[a.grade]=byGrade[a.grade]||[];
+    byGrade[a.grade].push(a);
+  });
+
+  GRADE_ORDER.forEach(g=>{
+    if(!byGrade[g]) return;
+
+    const trG = document.createElement("tr");
+    trG.className="grade";
+    trG.innerHTML=`<td colspan="3">Grade ${g}</td>`;
+    tb.appendChild(trG);
+
+    byGrade[g].forEach(a=>{
+      const trA=document.createElement("tr");
+      trA.className="area";
+      trA.innerHTML=`
+        <td>${a.name}</td>
+        <td>
+          <select onchange="changeGrade('${a.name}',this.value)">
+            ${GRADE_ORDER.map(x=>`<option ${x===g?'selected':''}>${x}</option>`).join("")}
+          </select>
+        </td>
+        <td></td>`;
+      tb.appendChild(trA);
+
+      tasks.filter(t=>t.area_name===a.name).forEach(t=>{
+        const trT=document.createElement("tr");
+        trT.innerHTML=`
+          <td class="task">└ ${t.cycle}</td>
+          <td>${t.status}</td>
+          <td>
+            <button onclick="setStatus('${a.name}','${t.cycle}','O')">O</button>
+            <button onclick="setStatus('${a.name}','${t.cycle}','X')">X</button>
+          </td>`;
+        tb.appendChild(trT);
+      });
+    });
+  });
+}
+
+async function changeGrade(name,grade){
+  await supa.from("cleaning_areas").update({grade}).eq("name",name);
+}
+
+async function setStatus(name,cycle,status){
+  await supa.from("cleaning_area_tasks")
+    .update({status,status_changed_at:new Date().toISOString()})
+    .eq("area_name",name).eq("cycle",cycle);
+}
+
+/* ===== Realtime ===== */
+supa.channel("cleaning-realtime")
+  .on("postgres_changes",{event:"*",schema:"public",table:"cleaning_areas"},loadAll)
+  .on("postgres_changes",{event:"*",schema:"public",table:"cleaning_area_tasks"},loadAll)
+  .subscribe();
+
+loadAll();
+</script>
 </body>
 </html>
-
